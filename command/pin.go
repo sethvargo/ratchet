@@ -1,0 +1,98 @@
+package command
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/sethvargo/ratchet/parser"
+	"github.com/sethvargo/ratchet/resolver"
+)
+
+const pinCommandDesc = `Resolve and pin all versions`
+
+const pinCommandHelp = `
+The "pin" command resolves and pins any unpinned versions to their absolute or
+hashed version for the given input file:
+
+    actions/checkout@v3 -> actions/checkout@2541b1294d2704b0964813337f...
+
+The original unpinned version is preserved in a comment, next to the pinned
+version.
+
+To update versions that are already pinned, use the "update" command instead.
+
+EXAMPLES
+
+  ratchet pin ./path/to/file.yaml
+
+FLAGS
+
+`
+
+type PinCommand struct {
+	flagParser string
+	flagOut    string
+}
+
+func (c *PinCommand) Desc() string {
+	return pinCommandDesc
+}
+
+func (c *PinCommand) Flags() *flag.FlagSet {
+	f := flag.NewFlagSet("", flag.ExitOnError)
+	f.Usage = func() {
+		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(pinCommandHelp))
+		f.PrintDefaults()
+	}
+
+	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
+	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
+
+	return f
+}
+
+func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
+	f := c.Flags()
+
+	if err := f.Parse(originalArgs); err != nil {
+		return fmt.Errorf("failed to parse flags: %w", err)
+	}
+
+	args := f.Args()
+	if got := len(args); got != 1 {
+		return fmt.Errorf("expected exactly one argument, got %d", got)
+	}
+
+	inFile := args[0]
+	m, err := parseYAMLFile(inFile)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+	}
+
+	par, err := parser.For(ctx, c.flagParser)
+	if err != nil {
+		return err
+	}
+
+	res, err := resolver.NewDefaultResolver(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create github resolver: %w", err)
+	}
+
+	if err := parser.Pin(ctx, res, par, m); err != nil {
+		return fmt.Errorf("failed to pin refs: %w", err)
+	}
+
+	outFile := c.flagOut
+	if outFile == "" {
+		outFile = inFile
+	}
+	if err := writeYAMLFile(inFile, outFile, m); err != nil {
+		return fmt.Errorf("failed to save %s: %w", outFile, err)
+	}
+
+	return nil
+}

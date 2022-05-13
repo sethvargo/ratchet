@@ -35,7 +35,7 @@ func Run(ctx context.Context, args []string) error {
 	}
 
 	if name == "-v" || name == "-version" || name == "--version" {
-		fmt.Fprintln(os.Stderr, version.String())
+		fmt.Fprintln(os.Stderr, version.HumanVersion)
 		return nil
 	}
 

@@ -3,6 +3,7 @@
 package atomic
 
 import (
+	"fmt"
 	"os"
 )
 

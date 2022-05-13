@@ -1,0 +1,73 @@
+before:
+  hooks:
+    - 'go mod tidy'
+    - 'go mod verify'
+
+builds:
+  -
+    env:
+      - 'CGO_ENABLED=0'
+      - 'GO111MODULE=on'
+      - 'GOPROXY=https://proxy.golang.org,direct'
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - '-trimpath'
+    ldflags:
+      - '-s'
+      - '-w'
+      - '-X=github.com/sethvargo/ratchet/internal/version.Name={{ .ProjectName }}'
+      - '-X=github.com/sethvargo/ratchet/internal/version.Version={{ .Version }}'
+      - '-X=github.com/sethvargo/ratchet/internal/version.Commit={{ .Commit }}'
+      - '-extldflags=-static'
+    targets:
+      - 'darwin_amd64'
+      - 'darwin_arm64'
+      - 'linux_amd64'
+      - 'linux_arm64'
+      - 'windows_amd64'
+      - 'windows_arm64'
+    binary: '{{ .ProjectName }}'
+
+dockers:
+  -
+    image_templates:
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:latest'
+    build_flag_templates:
+      - '--pull'
+      - '--label=org.opencontainers.image.created={{ .CommitTimestamp }}'
+      - '--label=org.opencontainers.image.description=Ratchet is a tool for improving the security of CI/CD workflows by automating the process of pinning and unpinning upstream versions.'
+      - '--label=org.opencontainers.image.revision={{ .FullCommit }}'
+      - '--label=org.opencontainers.image.source=https://github.com/sethvargo/ratchet'
+      - '--label=org.opencontainers.image.title={{ .ProjectName }}'
+      - '--label=org.opencontainers.image.version={{ .Version }}'
+
+archives:
+  - format: 'tar.gz'
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    format_overrides:
+      - goos: 'windows'
+        format: 'zip'
+
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA512SUMS'
+  algorithm: 'sha512'
+
+signs:
+  - artifacts: 'checksum'
+    args:
+      - '--batch'
+      - '--local-user'
+      - '{{ .Env.GPG_FINGERPRINT }}'
+      - '--output'
+      - '${signature}'
+      - '--detach-sign'
+      - '${artifact}'
+
+release:
+  draft: false
+
+# changelog:
+#   use: 'github-native'

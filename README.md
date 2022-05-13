@@ -1,7 +1,10 @@
 # Ratchet
 
+![ratchet logo](docs/ratchet.png)
+
 Ratchet is a tool for improving the security of CI/CD workflows by automating
-the process of pinning and unpinning upstream versions. It's like Bundler, Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
+the process of pinning and unpinning upstream versions. It's like Bundler,
+Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
 
 -   GitHub Actions
 -   Google Cloud Build
@@ -35,7 +38,7 @@ toilsome. That's what ratchet aims to solve!
 
 ## Usage
 
-Pinning:
+**Pin to specific versions:**
 
 ```shell
 # pin the input file
@@ -48,7 +51,7 @@ Pinning:
 ./ratchet pin -out workflow-compiled.yml workflow.yml
 ```
 
-Unpinning:
+**Unpin existing pinned versions:**
 
 ```shell
 # unpin the input file
@@ -58,7 +61,7 @@ Unpinning:
 ./ratchet unpin -out workflow.yml workflow-compiled.yml
 ```
 
-Updating:
+**Update all versions to the latest matching constraint:**
 
 ```shell
 # update the input file
@@ -71,11 +74,29 @@ Updating:
 ./ratchet pin -out workflow-compiled.yml workflow.yml
 ```
 
+For more information, run a command with `-help` to use detailed usage
+instructions.
+
+
+## Installation
+
+There are a few options for installing ratchet:
+
+-   As a single-static binary from the [releases page](releases).
+-   As a container image from the [container registry](pkgs/container/ratchet).
+-   Compiled from source yourself. Note this option is not supported.
+
 
 ## Auth
 
--   Docker uses default "keychain" auth, which looks for local system auth.
--   GitHub accepts CLI flags
+-   The container resolver uses default "keychain" auth, which looks for local
+    system auth, similar to the Docker and gcloud CLIs.
+
+-   The GitHub resolver defaults to public github.com. Provide an oauth access
+    token with appropriate permissions via the `ACTIONS_TOKEN` environment
+    variable. To use a GitHub Enterprise installation, set the
+    `ACTIONS_BASE_URL` and `ACTIONS_UPLOAD_URL` environment variables to point
+    your instance.
 
 
 ## Terminology
@@ -102,10 +123,3 @@ Updating:
 -   Does not support resolving values in anchors or aliases. This is technically
     possible, but most CI systems also don't support these advanced YAML
     features.
-
-
-curl -sv \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-  -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
-  https://registry.docker.com/v2/library/ubuntu/manifests/20.04

@@ -1,0 +1,42 @@
+name: 'release'
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: 'write'
+  packages: 'write'
+
+jobs:
+  release:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: 'actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: 'actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2' # ratchet:actions/setup-go@v3
+        with:
+          go-version: '1.18'
+
+      - uses: 'docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b' # ratchet:docker/login-action@v2
+        with:
+          registry: 'ghcr.io'
+          username: '${{ github.actor }}'
+          password: '${{ secrets.GITHUB_TOKEN }}'
+
+      - id: 'import_gpg'
+        uses: 'crazy-max/ghaction-import-gpg@e00cb83a68c1158b29afc5217dd0582cada6d172' # ratchet:crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: '${{ secrets.GPG_PRIVATE_KEY }}'
+          passphrase: '${{ secrets.GPG_PASSPHRASE }}'
+
+      - uses: 'goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b' # ratchet:goreleaser/goreleaser-action@v2
+        with:
+          version: 'latest'
+          args: 'release --rm-dist'
+        env:
+          GPG_FINGERPRINT: '${{ steps.import_gpg.outputs.fingerprint }}'
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'

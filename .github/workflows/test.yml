@@ -3,29 +3,25 @@ name: 'test'
 on:
   push:
     branches:
-    - 'main'
+      - 'main'
   pull_request:
     branches:
-    - 'main'
+      - 'main'
   workflow_dispatch:
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: 'ubuntu-latest'
-
     steps:
-    - uses: 'actions/checkout@v3'
+      - uses: 'actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:actions/checkout@v3
 
-    - uses: 'actions/setup-go@v3'
-      with:
-        go-version: '1.18'
+      - uses: 'actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2' # ratchet:actions/setup-go@v3
+        with:
+          go-version: '1.18'
 
-    - uses: 'actions/cache@v3'
-      with:
-        path: '~/go/pkg/mod'
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |-
-          ${{ runner.os }}-go-
-
-    - run: |-
-        go test -count=1 -race ./...
+      - run: |-
+          go test -count=1 -race ./...

@@ -90,8 +90,8 @@ instructions.
 
 There are a few options for installing ratchet:
 
--   As a single-static binary from the [releases page](releases).
--   As a container image from the [container registry](pkgs/container/ratchet).
+-   As a single-static binary from the [releases page](https://github.com/sethvargo/ratchet/releases).
+-   As a container image from the [container registry](https://github.com/sethvargo/ratchet/pkgs/container/ratchet).
 -   Compiled from source yourself. Note this option is not supported.
 
 

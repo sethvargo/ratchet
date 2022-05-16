@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
 	"github.com/sethvargo/ratchet/resolver"
 )
@@ -33,8 +34,9 @@ FLAGS
 `
 
 type PinCommand struct {
-	flagParser string
-	flagOut    string
+	flagConcurrency uint64
+	flagParser      string
+	flagOut         string
 }
 
 func (c *PinCommand) Desc() string {
@@ -48,6 +50,8 @@ func (c *PinCommand) Flags() *flag.FlagSet {
 		f.PrintDefaults()
 	}
 
+	f.Uint64Var(&c.flagConcurrency, "concurrency", concurrency.DefaultConcurrency(1),
+		"maximum number of concurrent resolutions")
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 
@@ -82,7 +86,7 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to create github resolver: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, m); err != nil {
+	if err := parser.Pin(ctx, res, par, m, c.flagConcurrency); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 

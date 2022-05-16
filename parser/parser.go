@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/sethvargo/ratchet/resolver"
+	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -45,28 +48,51 @@ func List() []string {
 
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
-func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node) error {
+func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, concurrency uint64) error {
 	refsList, err := parser.Parse(m)
 	if err != nil {
 		return err
 	}
 	refs := refsList.All()
 
+	jobs := int64(4)
+	sem := semaphore.NewWeighted(jobs)
+
+	var merrLock sync.Mutex
+	var merr *multierror.Error
+
 	for ref, nodes := range refs {
-		resolved, err := res.Resolve(ctx, ref)
-		if err != nil {
-			return err
+		ref := ref
+		nodes := nodes
+
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return fmt.Errorf("failed to acquire semaphore: %w", err)
 		}
 
-		denormRef := resolver.DenormalizeRef(ref)
+		go func() {
+			defer sem.Release(1)
 
-		for _, node := range nodes {
-			node.LineComment = appendOriginalToComment(node.LineComment, node.Value)
-			node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
-		}
+			resolved, err := res.Resolve(ctx, ref)
+			if err != nil {
+				merrLock.Lock()
+				merr = multierror.Append(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
+				merrLock.Unlock()
+			}
+
+			denormRef := resolver.DenormalizeRef(ref)
+
+			for _, node := range nodes {
+				node.LineComment = appendOriginalToComment(node.LineComment, node.Value)
+				node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
+			}
+		}()
 	}
 
-	return nil
+	if err := sem.Acquire(ctx, jobs); err != nil {
+		return fmt.Errorf("failed to wait for semaphore: %w", err)
+	}
+
+	return merr.ErrorOrNil()
 }
 
 // Unpin removes any pinned references and updates the actual YAML to be the

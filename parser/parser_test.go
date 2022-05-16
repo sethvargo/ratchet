@@ -79,7 +79,7 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Pin(ctx, res, par, m); err != nil {
+			if err := Pin(ctx, res, par, m, 2); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {

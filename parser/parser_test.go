@@ -69,6 +69,21 @@ jobs:
       - uses: 'good/repo@a12a3943' # this is a comment ratchet:good/repo@v0
 `,
 		},
+		{
+			name: "exclude",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'should_not/resolve@v0' # ratchet:exclude
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'should_not/resolve@v0' # ratchet:exclude
+`,
+		},
 	}
 
 	for _, tc := range cases {

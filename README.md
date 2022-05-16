@@ -107,6 +107,20 @@ There are a few options for installing ratchet:
     your instance.
 
 
+## Excluding
+
+There may be instances in which you want to exclude a particular reference from
+being pinned. You can use the `ratchet:exclude` annotation as a line comment and
+ratchet will not process that reference:
+
+```yaml
+uses: 'actions/checkout@v3' # ratchet:exclude
+```
+
+There **cannot** be any spaces in the exclusion string, and the exclusion string
+only applies to the line on which it appears.
+
+
 ## Terminology
 
 -   **Unpinned version** - An unpinned version is a non-absolute reference to a

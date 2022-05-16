@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/sethvargo/ratchet/parser"
 	"github.com/sethvargo/ratchet/resolver"
@@ -30,8 +28,7 @@ FLAGS
 `
 
 type UpdateCommand struct {
-	flagParser string
-	flagOut    string
+	*PinCommand
 }
 
 func (c *UpdateCommand) Desc() string {
@@ -39,15 +36,7 @@ func (c *UpdateCommand) Desc() string {
 }
 
 func (c *UpdateCommand) Flags() *flag.FlagSet {
-	f := flag.NewFlagSet("", flag.ExitOnError)
-	f.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(updateCommandHelp))
-		f.PrintDefaults()
-	}
-
-	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
-	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
-
+	f := c.PinCommand.Flags()
 	return f
 }
 
@@ -83,7 +72,7 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to unpin refs: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, m); err != nil {
+	if err := parser.Pin(ctx, res, par, m, c.flagConcurrency); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 

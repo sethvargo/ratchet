@@ -11,15 +11,21 @@ const (
 	ContainerProtocol = "container://"
 )
 
+// Resolver is an interface that resolvers can implement.
 type Resolver interface {
+	// Resolve resolves the given reference, returning the resolved reference or
+	// an error. If the provided context is canceled, the resolution is also
+	// canceled.
 	Resolve(context.Context, string) (string, error)
 }
 
+// DefaultResolver is the default resolver.
 type DefaultResolver struct {
 	actions   *Actions
 	container *Container
 }
 
+// NewDefaultResolver returns the default resolver.
 func NewDefaultResolver(ctx context.Context) (Resolver, error) {
 	actions, err := NewActions(ctx)
 	if err != nil {
@@ -37,6 +43,7 @@ func NewDefaultResolver(ctx context.Context) (Resolver, error) {
 	}, nil
 }
 
+// Resolve resolves the ref.
 func (r *DefaultResolver) Resolve(ctx context.Context, ref string) (string, error) {
 	switch {
 	case strings.HasPrefix(ref, ActionsProtocol):
@@ -48,6 +55,7 @@ func (r *DefaultResolver) Resolve(ctx context.Context, ref string) (string, erro
 	}
 }
 
+// DenormalizeRef removes the reference prefix.
 func DenormalizeRef(in string) string {
 	in = strings.TrimPrefix(in, ActionsProtocol)
 	in = strings.TrimPrefix(in, ContainerProtocol)

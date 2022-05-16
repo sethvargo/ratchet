@@ -42,7 +42,7 @@ func (g *Container) Resolve(ctx context.Context, value string) (string, error) {
 		remote.WithContext(ctx),
 		remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
-		return "", fmt.Errorf("failed to lookup container ref %q: %w", ref, err)
+		return "", fmt.Errorf("failed to lookup container ref: %w", err)
 	}
 
 	return fmt.Sprintf("%s@%s", ref.Context().Name(), resp.Digest.String()), nil

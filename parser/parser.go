@@ -13,7 +13,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const ratchetPrefix = "ratchet:"
+const (
+	ratchetPrefix  = "ratchet:"
+	ratchetExclude = "ratchet:exclude"
+)
 
 // Parser defines an interface which parses references out of the given yaml
 // node.
@@ -72,6 +75,25 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 		go func() {
 			defer sem.Release(1)
 
+			// Pre-filter any nodes that should be excluded from the lookup. It's
+			// important we do this before doing any lookups because, if the node list
+			// is empty, we don't want to make any API calls.
+			//
+			// It would actually be better to do this in the actual parser, but that
+			// would not scale to all the parsers (and would be difficult to debug).
+			tmp := nodes[:0]
+			for _, node := range nodes {
+				if !shouldExclude(node.LineComment) {
+					tmp = append(tmp, node)
+				}
+			}
+			nodes = tmp
+
+			// If there's no nodes left that are eligible, skip this reference.
+			if len(nodes) == 0 {
+				return
+			}
+
 			resolved, err := res.Resolve(ctx, ref)
 			if err != nil {
 				merrLock.Lock()
@@ -121,6 +143,12 @@ func Unpin(m *yaml.Node) error {
 	}
 
 	return nil
+}
+
+// shouldExclude returns true if the given comment includes a ratchet exclude
+// annotation, false otherwise.
+func shouldExclude(comment string) bool {
+	return strings.Contains(comment, ratchetExclude)
 }
 
 // appendOriginalToComment appends the original value to the end of an original

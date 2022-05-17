@@ -85,6 +85,12 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 For more information, run a command with `-help` to use detailed usage
 instructions.
 
+**Check if all versions are pinned:**
+
+```shell
+./ratchet check workflow.yml
+```
+
 
 ## Installation
 

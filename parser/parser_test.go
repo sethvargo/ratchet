@@ -10,6 +10,77 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestCheck(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	par := new(Actions)
+
+	cases := []struct {
+		name string
+		in   string
+		err  string
+	}{
+		{
+			name: "no_uses",
+			in: `
+foo: 'bar'
+`,
+		},
+		{
+			name: "good_uses",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@2541b1294d2704b0964813337f33b291d3f8596b'
+`,
+		},
+		{
+			name: "bad_uses",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0'
+`,
+			err: `found 1 unpinned refs: ["good/repo@v0"]`,
+		},
+		{
+			name: "exclude",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0' # ratchet:exclude
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := helperStringToYAML(t, tc.in)
+
+			if err := Check(ctx, par, m); err != nil {
+				if tc.err == "" {
+					t.Fatal(err)
+				} else {
+					if got, want := err.Error(), tc.err; !strings.Contains(got, want) {
+						t.Errorf("expected %q to contain %q", got, want)
+					}
+				}
+			} else if tc.err != "" {
+				t.Fatal("expected error, got nothing")
+			}
+		})
+	}
+}
+
 func TestPin(t *testing.T) {
 	t.Parallel()
 

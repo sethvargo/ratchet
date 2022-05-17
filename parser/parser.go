@@ -49,6 +49,43 @@ func List() []string {
 	return cp
 }
 
+// Check iterates over all references in the yaml and checks if they are pinned
+// to an absolute reference. It ignores "ratchet:exclude" nodes from the lookup.
+func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
+	refsList, err := parser.Parse(m)
+	if err != nil {
+		return err
+	}
+	refs := refsList.All()
+
+	var unpinned []string
+	for ref, nodes := range refs {
+		ref = resolver.DenormalizeRef(ref)
+
+		// Pre-filter any nodes that should be excluded from the lookup.
+		hasAny := false
+		for _, node := range nodes {
+			if !shouldExclude(node.LineComment) {
+				hasAny = true
+				break
+			}
+		}
+		if !hasAny {
+			continue
+		}
+
+		if !isAbsolute(ref) {
+			unpinned = append(unpinned, ref)
+		}
+	}
+
+	if l := len(unpinned); l > 0 {
+		return fmt.Errorf("found %d unpinned refs: %q", l, unpinned)
+	}
+
+	return nil
+}
+
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
 func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, concurrency uint64) error {

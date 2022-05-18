@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/sethvargo/ratchet/parser"
 	"github.com/sethvargo/ratchet/resolver"
@@ -37,6 +39,11 @@ func (c *UpdateCommand) Desc() string {
 
 func (c *UpdateCommand) Flags() *flag.FlagSet {
 	f := c.PinCommand.Flags()
+	f.Usage = func() {
+		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(updateCommandHelp))
+		f.PrintDefaults()
+	}
+
 	return f
 }
 

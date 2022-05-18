@@ -28,7 +28,7 @@ FLAGS
 `
 
 type UpdateCommand struct {
-	*PinCommand
+	PinCommand
 }
 
 func (c *UpdateCommand) Desc() string {

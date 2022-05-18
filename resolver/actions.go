@@ -53,7 +53,7 @@ func NewActions(ctx context.Context) (*Actions, error) {
 }
 
 func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
-	githubRef, err := ParseRef(value)
+	githubRef, err := ParseActionRef(value)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse github ref: %w", err)
 	}
@@ -68,16 +68,16 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	return fmt.Sprintf("%s/%s@%s", owner, repo, sha), nil
 }
 
-func ParseRef(s string) (*GitHubRef, error) {
+func ParseActionRef(s string) (*GitHubRef, error) {
 	parts := strings.SplitN(s, "/", 2)
 	if len(parts) < 2 {
-		return nil, fmt.Errorf("bad cutset: %q", s)
+		return nil, fmt.Errorf("missing owner/repo in actions reference: %q", s)
 	}
 	owner, rest := parts[0], parts[1]
 
 	smallerParts := strings.SplitN(rest, "@", 2)
 	if len(smallerParts) < 2 {
-		return nil, fmt.Errorf("bad cutset2: %q", s)
+		return nil, fmt.Errorf("missing @ in actions reference: %q", s)
 	}
 	ref := smallerParts[1]
 

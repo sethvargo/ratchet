@@ -6,8 +6,10 @@ Ratchet is a tool for improving the security of CI/CD workflows by automating
 the process of pinning and unpinning upstream versions. It's like Bundler,
 Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
 
+-   Circle CI
 -   GitHub Actions
 -   Google Cloud Build
+
 
 ## Problem statement
 
@@ -52,6 +54,9 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 # pin the input file
 ./ratchet pin workflow.yml
 
+# pin a circleci file
+./ratchet pin -parser circleci circleci.yml
+
 # pin a cloudbuild file
 ./ratchet pin -parser cloudbuild cloudbuild.yml
 
@@ -74,6 +79,9 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 ```shell
 # update the input file
 ./ratchet update workflow.yml
+
+# update a circleci file
+./ratchet update -parser circleci circleci.yml
 
 # update a cloudbuild file
 ./ratchet update -parser cloudbuild cloudbuild.yml

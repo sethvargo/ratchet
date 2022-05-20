@@ -1,0 +1,16 @@
+version: '2.1'
+
+orbs:
+  my-orb: 'circleci/hello-build@0.0.5'
+  my-other-orb: 'circleci/hello-build@0.0.3'
+
+executors:
+  my-executor:
+    docker:
+      - image: 'cimg/base:2022.05-22.04'
+
+jobs:
+  build:
+    docker:
+      - image: 'cimg/base:2022.05-22.04'
+      - image: 'ubuntu:20.04'

@@ -26,6 +26,7 @@ type Parser interface {
 
 var parserFactory = map[string]func() Parser{
 	"actions":    func() Parser { return new(Actions) },
+	"circleci":   func() Parser { return new(CircleCI) },
 	"cloudbuild": func() Parser { return new(CloudBuild) },
 }
 

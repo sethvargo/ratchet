@@ -48,6 +48,9 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 
 ## Usage
 
+**⚠️ Warning!** The README corresponds to the `main` branch of ratchet's
+development, and it may contain unreleased features.
+
 **Pin to specific versions:**
 
 ```shell

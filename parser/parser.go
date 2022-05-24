@@ -167,7 +167,7 @@ func Unpin(m *yaml.Node) error {
 		return nil
 	}
 
-	if m.LineComment != "" {
+	if m.LineComment != "" && !shouldExclude(m.LineComment) {
 		if v, rest := extractOriginalFromComment(m.LineComment); v != "" {
 			m.Value = v
 			m.LineComment = rest

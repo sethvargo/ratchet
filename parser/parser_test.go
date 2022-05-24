@@ -222,6 +222,11 @@ func TestUnpin(t *testing.T) {
 - uses: "i/am@pinned" # comment
 `,
 		},
+		{
+			name: "exclude_comment",
+			in:   `uses: "my/repo@v0" # ratchet:exclude more comment`,
+			exp:  `uses: "my/repo@v0" # ratchet:exclude more comment`,
+		},
 	}
 
 	for _, tc := range cases {

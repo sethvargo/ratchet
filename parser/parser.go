@@ -52,7 +52,8 @@ func List() []string {
 
 // Check iterates over all references in the yaml and checks if they are pinned
 // to an absolute reference. It ignores "ratchet:exclude" nodes from the lookup.
-func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
+// It checks if original constraint matches the hashed references value
+func Check(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, consistent bool) error {
 	refsList, err := parser.Parse(m)
 	if err != nil {
 		return err
@@ -60,7 +61,9 @@ func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
 	refs := refsList.All()
 
 	var unpinned []string
+	var mismatch []Match
 	for ref, nodes := range refs {
+		orgRef := ref
 		ref = resolver.DenormalizeRef(ref)
 
 		// Pre-filter any nodes that should be excluded from the lookup.
@@ -78,10 +81,26 @@ func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
 		if !isAbsolute(ref) {
 			unpinned = append(unpinned, ref)
 		}
+
+		if consistent {
+			for _, node := range nodes {
+				if ok, err := refConsistentWithOriginalConstraint(ctx, orgRef, res, node); !ok {
+					mismatch = append(mismatch, NewMatch(ref, node))
+
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
 	}
 
 	if l := len(unpinned); l > 0 {
 		return fmt.Errorf("found %d unpinned refs: %q", l, unpinned)
+	}
+
+	if l := len(mismatch); l > 0 {
+		return fmt.Errorf("found %d mismatch between ref and constraint: %q", l, mismatch)
 	}
 
 	return nil

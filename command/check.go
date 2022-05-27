@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/sethvargo/ratchet/resolver"
 	"os"
 	"strings"
 
@@ -28,7 +29,8 @@ FLAGS
 `
 
 type CheckCommand struct {
-	flagParser string
+	flagParser     string
+	flagConsistent bool
 }
 
 func (c *CheckCommand) Desc() string {
@@ -43,6 +45,7 @@ func (c *CheckCommand) Flags() *flag.FlagSet {
 	}
 
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
+	f.BoolVar(&c.flagConsistent, "consistent", false, "handle the inconsistency between pinned and original constraint")
 
 	return f
 }
@@ -70,7 +73,12 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	if err := parser.Check(ctx, par, m); err != nil {
+	res, err := resolver.NewDefaultResolver(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create github resolver: %w", err)
+	}
+
+	if err := parser.Check(ctx, res, par, m, c.flagConsistent); err != nil {
 		return fmt.Errorf("check failed: %w", err)
 	}
 

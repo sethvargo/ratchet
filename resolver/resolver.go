@@ -61,3 +61,14 @@ func DenormalizeRef(in string) string {
 	in = strings.TrimPrefix(in, ContainerProtocol)
 	return in
 }
+
+// RefPrefix gets the reference prefix.
+func RefPrefix(in string) string {
+	if strings.HasPrefix(in, ActionsProtocol) {
+		in = ActionsProtocol
+	}
+	if strings.HasPrefix(in, ContainerProtocol) {
+		in = ActionsProtocol
+	}
+	return in
+}

@@ -15,12 +15,20 @@ func TestCheck(t *testing.T) {
 
 	ctx := context.Background()
 
+	res, err := resolver.NewTest(map[string]*resolver.TestResult{
+		"actions://good/repo@v0": {Resolved: "good/repo@a12a3943"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	par := new(Actions)
 
 	cases := []struct {
-		name string
-		in   string
-		err  string
+		name       string
+		consistent bool
+		in         string
+		err        string
 	}{
 		{
 			name: "no_uses",
@@ -56,6 +64,16 @@ jobs:
       - uses: 'good/repo@v0' # ratchet:exclude
 `,
 		},
+		{
+			name:       "inconsistent",
+			consistent: true,
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:good/repo@v0
+`, err: "found 1 mismatch between ref and constraint: [{\"good/repo@2541b1294d2704b0964813337f33b291d3f8596b\" \"good/repo@v0\" \"4\"}]",
+		},
 	}
 
 	for _, tc := range cases {
@@ -66,7 +84,7 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Check(ctx, par, m); err != nil {
+			if err := Check(ctx, res, par, m, tc.consistent); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {

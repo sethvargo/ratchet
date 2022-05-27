@@ -89,15 +89,14 @@ func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
 
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
-func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, concurrency uint64) error {
+func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, concurrency int64) error {
 	refsList, err := parser.Parse(m)
 	if err != nil {
 		return err
 	}
 	refs := refsList.All()
 
-	jobs := int64(4)
-	sem := semaphore.NewWeighted(jobs)
+	sem := semaphore.NewWeighted(concurrency)
 
 	var merrLock sync.Mutex
 	var merr *multierror.Error
@@ -148,7 +147,7 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 		}()
 	}
 
-	if err := sem.Acquire(ctx, jobs); err != nil {
+	if err := sem.Acquire(ctx, concurrency); err != nil {
 		return fmt.Errorf("failed to wait for semaphore: %w", err)
 	}
 

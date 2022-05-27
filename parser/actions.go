@@ -91,17 +91,16 @@ func (a *Actions) Parse(m *yaml.Node) (*RefsList, error) {
 							for k, property := range step.Content {
 								if property.Value == "uses" {
 									uses := step.Content[k+1]
-									// Only include references to remove workflows. This could be a
-									// local workflow, which should not be pinned.
+									// Only include references to remove workflows. This could be
+									// a local workflow, which should not be pinned.
 									switch {
+									case strings.HasPrefix(uses.Value, "docker://"):
+										ref := resolver.NormalizeContainerRef(uses.Value)
+										refs.Add(ref, uses)
 									case strings.Contains(uses.Value, "@"):
 										ref := resolver.NormalizeActionsRef(uses.Value)
 										refs.Add(ref, uses)
-									case strings.Contains(uses.Value, "docker://"):
-										ref := resolver.NormalizeContainerRef(uses.Value)
-										refs.Add(ref, uses)
 									}
-									break
 								}
 							}
 						}
@@ -114,11 +113,11 @@ func (a *Actions) Parse(m *yaml.Node) (*RefsList, error) {
 						// Only include references to remove workflows. This could be a
 						// local workflow, which should not be pinned.
 						switch {
+						case strings.HasPrefix(uses.Value, "docker://"):
+							ref := resolver.NormalizeContainerRef(uses.Value)
+							refs.Add(ref, uses)
 						case strings.Contains(uses.Value, "@"):
 							ref := resolver.NormalizeActionsRef(uses.Value)
-							refs.Add(ref, uses)
-						case strings.Contains(uses.Value, "docker://"):
-							ref := resolver.NormalizeContainerRef(uses.Value)
 							refs.Add(ref, uses)
 						}
 					}

@@ -21,7 +21,7 @@ hashed version for the given input file:
     actions/checkout@v3 -> actions/checkout@2541b1294d2704b0964813337f...
 
 The original unpinned version is preserved in a comment, next to the pinned
-version.
+version. If a version is already pinned, it does nothing.
 
 To update versions that are already pinned, use the "update" command instead.
 

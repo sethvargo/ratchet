@@ -87,7 +87,15 @@ func TestPin(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := resolver.NewTest(map[string]*resolver.TestResult{
-		"actions://good/repo@v0": {Resolved: "good/repo@a12a3943"},
+		"actions://good/repo@v0": {
+			Resolved: "good/repo@a12a3943",
+		},
+		"actions://good/repo@2541b1294d2704b0964813337f33b291d3f8596b": {
+			Resolved: "good/repo@2541b1294d2704b0964813337f33b291d3f8596b",
+		},
+		"container://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724": {
+			Resolved: "ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -138,6 +146,23 @@ jobs:
   my_job:
     steps:
       - uses: 'good/repo@a12a3943' # this is a comment ratchet:good/repo@v0
+`,
+		},
+		{
+			name: "already_pinned",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:good/repo@v0
+      - uses: 'docker://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:docker://ubuntu:20.04
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:good/repo@v0
+      - uses: 'docker://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:docker://ubuntu:20.04
 `,
 		},
 		{

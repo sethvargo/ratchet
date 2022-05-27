@@ -96,6 +96,14 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 	}
 	refs := refsList.All()
 
+	// Remove any absolute references from the list. We do not want to pin
+	// absolute references since they are already pinned.
+	for ref := range refs {
+		if isAbsolute(ref) {
+			delete(refs, ref)
+		}
+	}
+
 	sem := semaphore.NewWeighted(concurrency)
 
 	var merrLock sync.Mutex

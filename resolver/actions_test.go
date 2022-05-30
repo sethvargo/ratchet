@@ -1,10 +1,61 @@
 package resolver
 
 import (
+	"context"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+func TestResolve(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	resolver, err := NewActions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "default",
+			in:   "actions/checkout@v3",
+			exp:  `actions\/checkout@[0-9a-f]{40}`,
+		},
+		{
+			name: "path",
+			in:   "github/codeql-action/init@v1",
+			exp:  `github\/codeql-action\/init@[0-9a-f]{40}`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := resolver.Resolve(ctx, tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			match, err := regexp.MatchString(tc.exp, result)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !match {
+				t.Errorf("expected %q to match %q", result, tc.exp)
+			}
+		})
+	}
+}
 
 func TestParseRef(t *testing.T) {
 	t.Parallel()

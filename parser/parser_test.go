@@ -90,6 +90,9 @@ func TestPin(t *testing.T) {
 		"actions://good/repo@v0": {
 			Resolved: "good/repo@a12a3943",
 		},
+		"actions://good/repo/sub/path@v0": {
+			Resolved: "good/repo/sub/path@a12a3943",
+		},
 		"actions://good/repo@2541b1294d2704b0964813337f33b291d3f8596b": {
 			Resolved: "good/repo@2541b1294d2704b0964813337f33b291d3f8596b",
 		},
@@ -131,6 +134,21 @@ jobs:
   my_job:
     steps:
       - uses: 'good/repo@a12a3943' # ratchet:good/repo@v0
+`,
+		},
+		{
+			name: "uses_subpath",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo/sub/path@v0'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo/sub/path@a12a3943' # ratchet:good/repo/sub/path@v0
 `,
 		},
 		{

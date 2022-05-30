@@ -59,13 +59,20 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	}
 	owner := githubRef.owner
 	repo := githubRef.repo
+	path := githubRef.path
 	ref := githubRef.ref
 
 	sha, _, err := g.client.Repositories.GetCommitSHA1(ctx, owner, repo, ref, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit sha: %w", err)
 	}
-	return fmt.Sprintf("%s/%s@%s", owner, repo, sha), nil
+
+	name := owner + "/" + repo
+	if path != "" {
+		name = name + "/" + path
+	}
+
+	return fmt.Sprintf("%s@%s", name, sha), nil
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {

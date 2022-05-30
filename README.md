@@ -116,14 +116,14 @@ jobs:
       - uses: 'actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:actions/checkout@v3
 
       # Example of pinning.
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.2.1'
+      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.2.3'
         with:
-          args: ['pin', '.github/workflows/my-workflow.yml']
+          args: "pin .github/workflows/my-workflow.yml"
 
       # Example of checking versions are pinned.
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.2.1'
+      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.2.3'
         with:
-          args: ['check', '.github/workflows/my-workflow.yml']
+          args: "check .github/workflows/my-workflow.yml"
 ```
 
 This same pattern can be extended to other CI/CD systems that support

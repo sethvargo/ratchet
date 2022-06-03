@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sethvargo/ratchet/parser"
@@ -22,6 +23,7 @@ not communicate with upstream APIs or services.
 EXAMPLES
 
   ratchet check ./path/to/file.yaml
+  ratchet check ./path/to/dir
 
 FLAGS
 
@@ -59,10 +61,45 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d", got)
 	}
 
-	inFile := args[0]
-	m, err := parseYAMLFile(inFile)
+	input := args[0]
+
+	fileInfo, err := os.Stat(input)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+		return fmt.Errorf("input not found %w", err)
+	}
+
+	skipRoot := false
+	if fileInfo.IsDir() {
+		return filepath.Walk(input,
+			func(path string, info os.FileInfo, err error) error {
+				if !skipRoot {
+					skipRoot = true
+					return nil
+				}
+
+				if err != nil {
+					return err
+				}
+
+				err = c.Check(ctx, path)
+
+				if err == nil {
+					fmt.Println(fmt.Sprintf("[PASS] %s", path))
+				} else {
+					fmt.Println(fmt.Sprintf("[FAIL] %s : %v", path, err))
+				}
+
+				return err
+			})
+	}
+
+	return c.Check(ctx, input)
+}
+
+func (c *CheckCommand) Check(ctx context.Context, path string) error {
+	m, err := parseYAMLFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
 	par, err := parser.For(ctx, c.flagParser)

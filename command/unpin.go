@@ -64,10 +64,13 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d", got)
 	}
 
-	inFile := args[0]
-	m, err := parseYAMLFile(inFile)
+	return do(ctx, args[0], c.Do)
+}
+
+func (c *UnpinCommand) Do(ctx context.Context, path string) error {
+	m, err := parseYAMLFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+		return fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
 	if err := parser.Unpin(m); err != nil {
@@ -76,9 +79,9 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	outFile := c.flagOut
 	if outFile == "" {
-		outFile = inFile
+		outFile = path
 	}
-	if err := writeYAMLFile(inFile, outFile, m); err != nil {
+	if err := writeYAMLFile(path, outFile, m); err != nil {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
 	}
 

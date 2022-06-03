@@ -59,10 +59,13 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d %q", got, args)
 	}
 
-	inFile := args[0]
-	m, err := parseYAMLFile(inFile)
+	return do(ctx, args[0], c.Do)
+}
+
+func (c *UpdateCommand) Do(ctx context.Context, path string) error {
+	m, err := parseYAMLFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+		return fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
 	par, err := parser.For(ctx, c.flagParser)
@@ -85,9 +88,9 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	outFile := c.flagOut
 	if outFile == "" {
-		outFile = inFile
+		outFile = path
 	}
-	if err := writeYAMLFile(inFile, outFile, m); err != nil {
+	if err := writeYAMLFile(path, outFile, m); err != nil {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
 	}
 

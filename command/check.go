@@ -22,6 +22,7 @@ not communicate with upstream APIs or services.
 EXAMPLES
 
   ratchet check ./path/to/file.yaml
+  ratchet check ./path/to/dir
 
 FLAGS
 
@@ -59,10 +60,13 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d", got)
 	}
 
-	inFile := args[0]
-	m, err := parseYAMLFile(inFile)
+	return do(ctx, args[0], c.Do)
+}
+
+func (c *CheckCommand) Do(ctx context.Context, path string) error {
+	m, err := parseYAMLFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+		return fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
 	par, err := parser.For(ctx, c.flagParser)

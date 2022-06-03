@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/sethvargo/ratchet/internal/walker"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
@@ -25,6 +27,7 @@ var Commands = map[string]Command{
 type Command interface {
 	Desc() string
 	Run(ctx context.Context, args []string) error
+	Do(ctx context.Context, path string) error
 }
 
 // Run executes the main entrypoint for the CLI.
@@ -146,4 +149,19 @@ func parseYAMLFile(pth string) (m *yaml.Node, retErr error) {
 
 	m, retErr = parseYAML(f)
 	return
+}
+
+// do calls Run() command as-is, if given path is a file. If the path
+// is a directory, it will walk the directory and issues Run() on each file.
+func do(ctx context.Context, path string, doerFn walker.Doer) error {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("input not found %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		return walker.Walk(ctx, path, doerFn)
+	}
+
+	return doerFn(ctx, path)
 }

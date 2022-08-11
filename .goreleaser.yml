@@ -11,6 +11,7 @@ builds:
       - 'GOPROXY=https://proxy.golang.org,direct'
     mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
+      - '-a'
       - '-trimpath'
     ldflags:
       - '-s'
@@ -19,30 +20,72 @@ builds:
       - '-X=github.com/sethvargo/ratchet/internal/version.Version={{ .Version }}'
       - '-X=github.com/sethvargo/ratchet/internal/version.Commit={{ .Commit }}'
       - '-extldflags=-static'
-    targets:
-      - 'darwin_amd64'
-      - 'darwin_arm64'
-      - 'linux_amd64'
-      - 'linux_arm64'
-      - 'windows_amd64'
-      - 'windows_arm64'
+    goos:
+      - 'darwin'
+      - 'linux'
+      - 'windows'
+    goarch:
+      - 'amd64'
+      - 'arm64'
     binary: '{{ .ProjectName }}'
 
 dockers:
   -
+    use: 'buildx'
     image_templates:
-      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}'
-      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}'
-      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}'
-      - 'ghcr.io/sethvargo/{{ .ProjectName }}:latest'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:latest-amd64'
     build_flag_templates:
+      - '--platform=linux/amd64'
       - '--pull'
       - '--label=org.opencontainers.image.created={{ .CommitTimestamp }}'
       - '--label=org.opencontainers.image.description=Ratchet is a tool for improving the security of CI/CD workflows by automating the process of pinning and unpinning upstream versions.'
+      - '--label=org.opencontainers.image.licenses=Apache-2.0'
       - '--label=org.opencontainers.image.revision={{ .FullCommit }}'
       - '--label=org.opencontainers.image.source=https://github.com/sethvargo/ratchet'
       - '--label=org.opencontainers.image.title={{ .ProjectName }}'
       - '--label=org.opencontainers.image.version={{ .Version }}'
+  -
+    use: 'buildx'
+    image_templates:
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}-arm64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-arm64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}-arm64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:latest-arm64'
+    build_flag_templates:
+      - '--platform=linux/arm64'
+      - '--pull'
+      - '--label=org.opencontainers.image.created={{ .CommitTimestamp }}'
+      - '--label=org.opencontainers.image.description=Ratchet is a tool for improving the security of CI/CD workflows by automating the process of pinning and unpinning upstream versions.'
+      - '--label=org.opencontainers.image.licenses=Apache-2.0'
+      - '--label=org.opencontainers.image.revision={{ .FullCommit }}'
+      - '--label=org.opencontainers.image.source=https://github.com/sethvargo/ratchet'
+      - '--label=org.opencontainers.image.title={{ .ProjectName }}'
+      - '--label=org.opencontainers.image.version={{ .Version }}'
+
+docker_manifests:
+  -
+    name_template: 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}'
+    image_templates:
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}-arm64'
+  -
+    name_template: 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}'
+    image_templates:
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-arm64'
+  -
+    name_template: 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}'
+    image_templates:
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}.{{ .Patch }}-arm64'
+  -
+    name_template: 'ghcr.io/sethvargo/{{ .ProjectName }}:latest'
+    image_templates:
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:latest-amd64'
+      - 'ghcr.io/sethvargo/{{ .ProjectName }}:latest-arm64'
 
 archives:
   - format: 'tar.gz'

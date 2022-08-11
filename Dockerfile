@@ -1,4 +1,4 @@
-FROM alpine AS builder
+FROM --platform=$BUILDPLATFORM alpine AS builder
 
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/

@@ -32,6 +32,8 @@ builds:
 dockers:
   -
     use: 'buildx'
+    goos: 'linux'
+    goarch: 'amd64'
     image_templates:
       - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}-amd64'
       - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-amd64'
@@ -49,6 +51,8 @@ dockers:
       - '--label=org.opencontainers.image.version={{ .Version }}'
   -
     use: 'buildx'
+    goos: 'linux'
+    goarch: 'arm64'
     image_templates:
       - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}-arm64'
       - 'ghcr.io/sethvargo/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-arm64'

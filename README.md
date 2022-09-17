@@ -8,6 +8,7 @@ Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
 
 -   Circle CI
 -   GitHub Actions
+-   GitLab CI
 -   Google Cloud Build
 
 

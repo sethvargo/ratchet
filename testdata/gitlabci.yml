@@ -1,0 +1,24 @@
+---
+stages:
+  - build
+  - test
+
+build-code-job:
+  stage: build
+  image:
+    name: gcr.io/distroless/static-debian11:nonroot
+    entrypoint: [""]
+  script:
+    - echo "Job 1"
+
+test-code-job1:
+  stage: test
+  image: node:12
+  script:
+    - echo "Job 2"
+
+test-code-job2:
+  stage: test
+  image: amazon/aws-cli:latest
+  script:
+    - echo "Job 3"

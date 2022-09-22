@@ -28,6 +28,7 @@ var parserFactory = map[string]func() Parser{
 	"actions":    func() Parser { return new(Actions) },
 	"circleci":   func() Parser { return new(CircleCI) },
 	"cloudbuild": func() Parser { return new(CloudBuild) },
+	"gitlabci":   func() Parser { return new(GitLabCI) },
 }
 
 // For returns the parser that corresponds to the given name.

@@ -107,5 +107,9 @@ signs:
       - '--detach-sign'
       - '${artifact}'
 
+changelog:
+  use: 'github'
+
 release:
   draft: false
+  mode: 'replace'

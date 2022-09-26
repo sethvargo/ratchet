@@ -14,7 +14,7 @@ const checkCommandDesc = `Check if all versions are pinned`
 
 const checkCommandHelp = `
 The "check" command checks if all versions are pinned to an absolute version,
-ignoring any versions with the "ratchet:ignore" comment.
+ignoring any versions with the "ratchet:exclude" comment.
 
 If any versions are unpinned, it returns a non-zero exit code. This command does
 not communicate with upstream APIs or services.

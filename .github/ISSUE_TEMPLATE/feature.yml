@@ -10,6 +10,14 @@ body:
       value: |-
         Thank you for requesting a feature. Please complete the form below so we can triage and prioritize your feature.
 
+  - id: 'new_issue'
+    type: 'checkboxes'
+    attributes:
+      label: 'New issue?'
+      options:
+        - label: 'I have reviewed the [Known Issues](https://github.com/sethvargo/ratchet#known-issues) and confirm this is not a known issue.'
+          required: true
+
   - id: 'tldr'
     type: 'textarea'
     attributes:

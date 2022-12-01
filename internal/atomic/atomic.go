@@ -35,8 +35,7 @@ const (
 // be atomic if the files are on the same volume, but cannot be guaranteed if
 // the file crosses volumes. For more information, see:
 //
-//     https://github.com/golang/go/issues/22397#issuecomment-498856679
-//
+//	https://github.com/golang/go/issues/22397#issuecomment-498856679
 func Write(src, dst string, r io.Reader) error {
 	parent := filepath.Dir(dst)
 	if _, err := os.Stat(parent); os.IsNotExist(err) {

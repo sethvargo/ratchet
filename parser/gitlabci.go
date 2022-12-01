@@ -42,7 +42,7 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 		for i, keysMap := range docMap.Content {
 
 			// exclude global keywords
-			if _, hit := globalKeywords[keysMap.Value] ; hit || (keysMap.Value == "") {
+			if _, hit := globalKeywords[keysMap.Value]; hit || (keysMap.Value == "") {
 				continue
 			}
 

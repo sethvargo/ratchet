@@ -10,6 +10,7 @@ Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
 -   GitHub Actions
 -   GitLab CI
 -   Google Cloud Build
+-   Harness Drone
 
 
 ## Problem statement
@@ -63,6 +64,12 @@ development, and it may contain unreleased features.
 
 # pin a cloudbuild file
 ./ratchet pin -parser cloudbuild cloudbuild.yml
+
+# pin a drone file
+./ratchet pin -parser drone drone.yml
+
+# pin a gitlab file
+./ratchet pin -parser gitlabci gitlabci.yml
 
 # output to a different path
 ./ratchet pin -out workflow-compiled.yml workflow.yml

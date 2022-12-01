@@ -7,10 +7,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type CloudBuild struct{}
+type Drone struct{}
 
-// Parse pulls the Google Cloud Build refs from the document.
-func (c *CloudBuild) Parse(m *yaml.Node) (*RefsList, error) {
+// Parse pulls the Drone Ci refs from the document.
+func (D *Drone) Parse(m *yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
 	if m == nil {
@@ -21,8 +21,8 @@ func (c *CloudBuild) Parse(m *yaml.Node) (*RefsList, error) {
 		return nil, fmt.Errorf("expected document node, got %v", m.Kind)
 	}
 
-	// Top-level object map
 	for _, docMap := range m.Content {
+
 		if docMap.Kind != yaml.MappingNode {
 			continue
 		}
@@ -38,17 +38,16 @@ func (c *CloudBuild) Parse(m *yaml.Node) (*RefsList, error) {
 			if steps.Kind != yaml.SequenceNode {
 				continue
 			}
-
 			for _, step := range steps.Content {
 				if step.Kind != yaml.MappingNode {
 					continue
 				}
 
 				for j, property := range step.Content {
-					if property.Value == "name" {
-						name := step.Content[j+1]
-						ref := resolver.NormalizeContainerRef(name.Value)
-						refs.Add(ref, name)
+					if property.Value == "image" {
+						image := step.Content[j+1]
+						ref := resolver.NormalizeContainerRef(image.Value)
+						refs.Add(ref, image)
 						break
 					}
 				}

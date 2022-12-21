@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sethvargo/ratchet/resolver"
 	"gopkg.in/yaml.v3"
@@ -69,7 +70,10 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 						imageRef = image
 					}
 
-					ref := resolver.NormalizeContainerRef(imageRef.Value)
+					// Expand variables
+					var expandedImageName = os.ExpandEnv(imageRef.Value)
+
+					ref := resolver.NormalizeContainerRef(expandedImageName)
 					refs.Add(ref, imageRef)
 				}
 			}

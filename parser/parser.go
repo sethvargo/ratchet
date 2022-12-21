@@ -150,9 +150,24 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 
 			denormRef := resolver.DenormalizeRef(ref)
 
+			split := func(imageRef string, splitOn string) (s string) {
+				arr := strings.Split(imageRef, splitOn)
+				if len(arr) == 1 {
+					return ""
+				}
+				return arr[len(arr)-1]
+			}
+
+			tag := split(denormRef, ":")
+			hash := split(resolved, "@")
+
 			for _, node := range nodes {
 				node.LineComment = appendOriginalToComment(node.LineComment, node.Value)
-				node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
+				if tag != "" {
+					node.Value = strings.Replace(node.Value, ":"+tag, "@"+hash, 1)
+				} else {
+					node.Value += "@" + hash
+				}
 			}
 		}()
 	}

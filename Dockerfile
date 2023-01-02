@@ -1,8 +1,4 @@
-FROM --platform=$BUILDPLATFORM alpine AS builder
-
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
+FROM cgr.dev/chainguard/static:latest-20230102
 # Normally we would set this to run as "nobody", but to play nicely with GitHub
 # Actions, it must run as the default user:
 #

@@ -137,6 +137,23 @@ jobs:
 This same pattern can be extended to other CI/CD systems that support
 container-based runtimes.
 
+### Inside a docker container
+
+Using this approach you won't have to install any binary into your local system.
+
+> **Note**: When mapping the volume to `/ws` you will be able to still benefit from completion on your filepaths.
+
+```shell
+docker run --rm --volume $PWD:/ws ghcr.io/sethvargo/ratchet:0.4.0 pin .github/workflows/ci.yaml
+```
+
+Or create yourself an alias in your `~/.bashrc` or `~/.zshrc`
+
+```shell
+function ratchet {
+  docker run --rm --volume $PWD:/ws ghcr.io/sethvargo/ratchet:0.4.0
+}
+```
 
 ## Installation
 

@@ -5,6 +5,8 @@ FROM cgr.dev/chainguard/static:latest-20230102
 #   https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
 #
 # USER nobody
+WORKDIR /ws
+ENV PATH /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/ratchet"]
 
-COPY ratchet /ratchet
-ENTRYPOINT ["/ratchet"]
+COPY ratchet /usr/local/bin/

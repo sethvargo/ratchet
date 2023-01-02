@@ -53,7 +53,7 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 **⚠️ Warning!** The README corresponds to the `main` branch of ratchet's
 development, and it may contain unreleased features.
 
-**Pin to specific versions:**
+### Pin to specific versions
 
 ```shell
 # pin the input file
@@ -75,7 +75,7 @@ development, and it may contain unreleased features.
 ./ratchet pin -out workflow-compiled.yml workflow.yml
 ```
 
-**Unpin existing pinned versions:**
+### Unpin existing pinned versions
 
 ```shell
 # unpin the input file
@@ -85,7 +85,7 @@ development, and it may contain unreleased features.
 ./ratchet unpin -out workflow.yml workflow-compiled.yml
 ```
 
-**Update all versions to the latest matching constraint:**
+### Update all versions to the latest matching constraint
 
 ```shell
 # update the input file
@@ -104,13 +104,13 @@ development, and it may contain unreleased features.
 For more information, run a command with `-help` to use detailed usage
 instructions.
 
-**Check if all versions are pinned:**
+### Check if all versions are pinned
 
 ```shell
 ./ratchet check workflow.yml
 ```
 
-**In a CI/CD workflow:**
+### In a CI/CD workflow
 
 Ratchet is distributed as a very small container, so you can use it as a step
 inside CI/CD jobs. Here is a GitHub Actions example:
@@ -144,14 +144,14 @@ Using this approach you won't have to install any binary into your local system.
 > **Note**: When mapping the volume to `/ws` you will be able to still benefit from completion on your filepaths.
 
 ```shell
-docker run --rm --volume $PWD:/ws ghcr.io/sethvargo/ratchet:0.4.0 pin .github/workflows/ci.yaml
+docker run --rm --volume "$PWD:/ws" ghcr.io/sethvargo/ratchet:0.4.0 pin .github/workflows/ci.yaml
 ```
 
 Or create yourself an alias in your `~/.bashrc` or `~/.zshrc`
 
 ```shell
 function ratchet {
-  docker run --rm --volume $PWD:/ws ghcr.io/sethvargo/ratchet:0.4.0
+  docker run --rm --volume "$PWD:/ws" ghcr.io/sethvargo/ratchet:0.4.0 "$@"
 }
 ```
 

@@ -32,6 +32,17 @@ var parserFactory = map[string]func() Parser{
 	"gitlabci":   func() Parser { return new(GitLabCI) },
 }
 
+// GetAvailableParser return the sorted list of available parser.
+func GetAvailableParsers() []string {
+	keys := make([]string, 0, len(parserFactory))
+	for k := range parserFactory {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	return keys
+}
+
 // For returns the parser that corresponds to the given name.
 func For(ctx context.Context, name string) (Parser, error) {
 	typ := strings.ToLower(strings.TrimSpace(name))

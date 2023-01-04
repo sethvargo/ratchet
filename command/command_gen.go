@@ -8,4 +8,12 @@ const topLevelHelp = `Usage: ratchet COMMAND
   pin       Resolve and pin all versions
   unpin     Revert pinned versions to their unpinned values
   update    Update all pinned versions to the latest value
+
+Available parsers:
+
+  actions
+  circleci
+  cloudbuild
+  drone
+  gitlabci
 `

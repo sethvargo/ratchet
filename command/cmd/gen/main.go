@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/sethvargo/ratchet/command"
+	"github.com/sethvargo/ratchet/parser"
 )
 
 func main() {
@@ -53,6 +54,8 @@ func folderRoot() string {
 }
 
 func buildTopLevelHelp() string {
+	var w strings.Builder
+
 	longest := 0
 	names := make([]string, 0, len(command.Commands))
 	for name := range command.Commands {
@@ -63,19 +66,20 @@ func buildTopLevelHelp() string {
 	}
 	sort.Strings(names)
 
-	var w strings.Builder
 	fmt.Fprint(&w, "Usage: ratchet COMMAND\n\n")
 	for _, name := range names {
 		cmd := command.Commands[name]
 
-		padding := longest - len(name) + 4
-		fmt.Fprint(&w, "  ")
-		fmt.Fprint(&w, name)
-		for i := 0; i < padding; i++ {
-			fmt.Fprint(&w, " ")
+		padding := strings.Repeat(" ", longest-len(name)+4)
+		fmt.Fprintf(&w, "  %s%s%s\n", name, padding, cmd.Desc())
+	}
+
+	parsers := parser.List()
+	if len(parsers) > 0 {
+		fmt.Fprintf(&w, "\nAvailable parsers:\n\n")
+		for _, name := range parser.List() {
+			fmt.Fprintf(&w, "  %s\n", name)
 		}
-		fmt.Fprint(&w, cmd.Desc())
-		fmt.Fprintln(&w)
 	}
 
 	return w.String()

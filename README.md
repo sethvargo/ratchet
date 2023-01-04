@@ -12,6 +12,9 @@ Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
 -   Google Cloud Build
 -   Harness Drone
 
+**⚠️ Warning!** The README corresponds to the `main` branch of ratchet's
+development, and it may contain unreleased features.
+
 
 ## Problem statement
 
@@ -48,12 +51,23 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 ```
 
 
+## Installation
+
+There are a few options for installing ratchet:
+
+-   As a single-static binary from the [releases page][releases].
+-   As a container image from the [container registry][containers].
+-   Compiled from source yourself. Note this option is not supported.
+
+
 ## Usage
 
-**⚠️ Warning!** The README corresponds to the `main` branch of ratchet's
-development, and it may contain unreleased features.
+For more information about available commands and options, run a command with
+`-help` to use detailed usage instructions.
 
-**Pin to specific versions:**
+#### Pin
+
+The `pin` command pins to specific versions:
 
 ```shell
 # pin the input file
@@ -75,7 +89,9 @@ development, and it may contain unreleased features.
 ./ratchet pin -out workflow-compiled.yml workflow.yml
 ```
 
-**Unpin existing pinned versions:**
+#### Unpin
+
+The `unpin` command unpins any pinned versions:
 
 ```shell
 # unpin the input file
@@ -85,7 +101,9 @@ development, and it may contain unreleased features.
 ./ratchet unpin -out workflow.yml workflow-compiled.yml
 ```
 
-**Update all versions to the latest matching constraint:**
+#### Update
+
+The `update` command updates all versions to the latest matching constraint:
 
 ```shell
 # update the input file
@@ -101,16 +119,18 @@ development, and it may contain unreleased features.
 ./ratchet pin -out workflow-compiled.yml workflow.yml
 ```
 
-For more information, run a command with `-help` to use detailed usage
-instructions.
+#### Check
 
-**Check if all versions are pinned:**
+The `check` command checks if all versions are pinned, exiting with a non-zero
+error code when entries are not pinned:
 
 ```shell
 ./ratchet check workflow.yml
 ```
 
-**In a CI/CD workflow:**
+## Examples
+
+#### CI/CD workflow
 
 Ratchet is distributed as a very small container, so you can use it as a step
 inside CI/CD jobs. Here is a GitHub Actions example:
@@ -121,30 +141,37 @@ jobs:
     runs-on: 'ubuntu-latest'
     name: 'ratchet'
     steps:
-      - uses: 'actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:actions/checkout@v3
+      - uses: 'actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b' # ratchet:actions/checkout@v3
 
-      # Example of pinning.
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.2.3'
+      # Example of pinning:
+      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.3.1'
         with:
-          args: "pin .github/workflows/my-workflow.yml"
+          args: 'pin .github/workflows/my-workflow.yml'
 
-      # Example of checking versions are pinned.
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.2.3'
+      # Example of checking versions are pinned:
+      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.3.1'
         with:
           args: 'check .github/workflows/my-workflow.yml'
 ```
 
 This same pattern can be extended to other CI/CD systems that support
-container-based runtimes.
+container-based runtimes. For non-container-based runtimes, download the `ratchet` binary from [GitHub Releases][releases].
 
+#### Runnable container CLI
 
-## Installation
+Ratchet can run directly from a container on your local system:
 
-There are a few options for installing ratchet:
+```shell
+docker run -it --rm -v "${PWD}:${PWD}" -w "${PWD}" ghcr.io/sethvargo/ratchet:0.3.1 COMMAND
+```
 
--   As a single-static binary from the [releases page](https://github.com/sethvargo/ratchet/releases).
--   As a container image from the [container registry](https://github.com/sethvargo/ratchet/pkgs/container/ratchet).
--   Compiled from source yourself. Note this option is not supported.
+Create a shell alias to make this easier:
+
+```shell
+function ratchet {
+  docker run -it --rm -v "${PWD}:${PWD}" -w "${PWD}" ghcr.io/sethvargo/ratchet:0.3.1 "$@"
+}
+```
 
 
 ## Auth
@@ -214,3 +241,6 @@ only applies to the line on which it appears.
         steps:
           - uses: 'actions/checkout@v${{ matrix.version }}'
     ```
+
+[containers]: https://github.com/sethvargo/ratchet/pkgs/container/ratchet
+[releases]: https://github.com/sethvargo/ratchet/releases

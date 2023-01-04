@@ -9,9 +9,8 @@ import (
 
 type GitLabCI struct{}
 
-// Parse pulls the image references from GitLab CI configuration files.
-// It does not support references with variables.
-
+// Parse pulls the image references from GitLab CI configuration files. It does
+// not support references with variables.
 func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 	var refs RefsList
 	var imageRef *yaml.Node

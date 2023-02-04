@@ -8,9 +8,10 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/sethvargo/ratchet/resolver"
 	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v3"
+
+	"github.com/sethvargo/ratchet/resolver"
 )
 
 const (

@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sethvargo/ratchet/resolver"
 	"gopkg.in/yaml.v3"
+
+	"github.com/sethvargo/ratchet/resolver"
 )
 
 func TestCheck(t *testing.T) {

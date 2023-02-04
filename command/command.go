@@ -7,9 +7,10 @@ import (
 	"io"
 	"os"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/internal/version"
-	"gopkg.in/yaml.v3"
 )
 
 // Commands is the main list of all commands.

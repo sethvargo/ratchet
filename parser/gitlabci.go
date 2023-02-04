@@ -3,8 +3,9 @@ package parser
 import (
 	"fmt"
 
-	"github.com/sethvargo/ratchet/resolver"
 	"gopkg.in/yaml.v3"
+
+	"github.com/sethvargo/ratchet/resolver"
 )
 
 type GitLabCI struct{}

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sethvargo/ratchet/resolver"
 	"gopkg.in/yaml.v3"
+
+	"github.com/sethvargo/ratchet/resolver"
 )
 
 type Actions struct{}

@@ -90,9 +90,134 @@ func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
 	return nil
 }
 
+// Cache is to cache the results of the resolver. This is
+// to avoid making multiple calls to the resolver for the same
+// reference. We parse all the files and de-duplicate references,
+// then resolve all references for faster lookup. Eventually we
+// end up with tight time-window where there could be a reference
+// drift which we could resolve differently if an upstream developer
+// pushes a new version.
+type Cache struct {
+	// refs is a map of denormalized references to the corresponding
+	// resolved reference.
+	refs map[string]string
+}
+
+var cache = &Cache{
+	refs: make(map[string]string),
+}
+
+// CacheLen returns the number of items in the cache for unit-testing purposes.
+func CacheLen() int {
+	return len(cache.refs)
+}
+
+// CacheInvalidate invalidates the cache. Useful when cleaning up after each test suite.
+func CacheInvalidate() {
+	cache.refs = make(map[string]string)
+}
+
+// FetchAndCacheReferences caches all the references in the given yaml nodes.
+func FetchAndCacheReferences(ctx context.Context, res resolver.Resolver, parser Parser, yamls []*yaml.Node, concurrency int64, forceResolve bool) error {
+	var (
+		cacheLock sync.Mutex
+		merrLock  sync.Mutex
+		merr      *multierror.Error
+	)
+
+	for _, m := range yamls {
+		refsList, err := parser.Parse(m)
+		if err != nil {
+			return err
+		}
+		refs := refsList.All()
+
+		// To avoid unnecessary network calls, `pin` command skips the absolute
+		// references, by default. For `update` command, it `unpin` all references
+		// first, then resolve all the references to update the cache. So we need
+		// a `forceResolve` flag to force resolve all the references, especially
+		// for unit-testing scenarios.
+		if !forceResolve {
+			// Remove any absolute references from the list. We do not do
+			// HTTP lookups for absolute references.
+			for ref := range refs {
+				if isAbsolute(ref) {
+					delete(refs, ref)
+				}
+			}
+		}
+
+		sem := semaphore.NewWeighted(concurrency)
+
+		for ref, nodes := range refs {
+			ref := ref
+			nodes := nodes
+
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return fmt.Errorf("failed to acquire semaphore: %w", err)
+			}
+
+			go func() {
+				defer sem.Release(1)
+
+				// Pre-filter any nodes that should be excluded from the lookup. It's
+				// important we do this before doing any lookups because, if the node list
+				// is empty, we don't want to make any API calls.
+				//
+				// It would actually be better to do this in the actual parser, but that
+				// would not scale to all the parsers (and would be difficult to debug).
+				tmp := nodes[:0]
+				for _, node := range nodes {
+					if !shouldExclude(node.LineComment) {
+						tmp = append(tmp, node)
+					}
+				}
+				nodes = tmp
+
+				// If there's no nodes left that are eligible, skip this reference.
+				if len(nodes) == 0 {
+					return
+				}
+
+				denormRef := resolver.DenormalizeRef(ref)
+
+				// If we have already cached this reference, skip this reference.
+				if _, ok := cache.refs[denormRef]; ok {
+					return
+				}
+
+				resolved, err := res.Resolve(ctx, ref)
+				if err != nil {
+					merrLock.Lock()
+					merr = multierror.Append(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
+					merrLock.Unlock()
+				}
+
+				cacheLock.Lock()
+				cache.refs[denormRef] = resolved
+				cacheLock.Unlock()
+			}()
+		}
+
+		if err := sem.Acquire(ctx, concurrency); err != nil {
+			return fmt.Errorf("failed to wait for semaphore: %w", err)
+		}
+	}
+
+	return merr.ErrorOrNil()
+}
+
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
 func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, concurrency int64) error {
+	// If we run against a single file, cache would be empty. So lazy-load
+	// the cache if not already loaded for single given node.
+	if len(cache.refs) == 0 {
+		if err := FetchAndCacheReferences(ctx, res, parser, []*yaml.Node{m}, concurrency, false); err != nil {
+			return fmt.Errorf("load cache: %w", err)
+		}
+	}
+
 	refsList, err := parser.Parse(m)
 	if err != nil {
 		return err
@@ -107,59 +232,40 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 		}
 	}
 
-	sem := semaphore.NewWeighted(concurrency)
-
-	var merrLock sync.Mutex
 	var merr *multierror.Error
 
 	for ref, nodes := range refs {
 		ref := ref
 		nodes := nodes
 
-		if err := sem.Acquire(ctx, 1); err != nil {
-			return fmt.Errorf("failed to acquire semaphore: %w", err)
+		// Pre-filter any nodes that should be excluded from the lookup. It's
+		// important we do this before doing any lookups because, if the node list
+		// is empty, we don't want to make any API calls.
+		//
+		// It would actually be better to do this in the actual parser, but that
+		// would not scale to all the parsers (and would be difficult to debug).
+		tmp := nodes[:0]
+		for _, node := range nodes {
+			if !shouldExclude(node.LineComment) {
+				tmp = append(tmp, node)
+			}
+		}
+		nodes = tmp
+
+		// If there's no nodes left that are eligible, skip this reference.
+		if len(nodes) == 0 {
+			continue
 		}
 
-		go func() {
-			defer sem.Release(1)
+		denormRef := resolver.DenormalizeRef(ref)
 
-			// Pre-filter any nodes that should be excluded from the lookup. It's
-			// important we do this before doing any lookups because, if the node list
-			// is empty, we don't want to make any API calls.
-			//
-			// It would actually be better to do this in the actual parser, but that
-			// would not scale to all the parsers (and would be difficult to debug).
-			tmp := nodes[:0]
-			for _, node := range nodes {
-				if !shouldExclude(node.LineComment) {
-					tmp = append(tmp, node)
-				}
-			}
-			nodes = tmp
-
-			// If there's no nodes left that are eligible, skip this reference.
-			if len(nodes) == 0 {
-				return
-			}
-
-			resolved, err := res.Resolve(ctx, ref)
-			if err != nil {
-				merrLock.Lock()
-				merr = multierror.Append(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
-				merrLock.Unlock()
-			}
-
-			denormRef := resolver.DenormalizeRef(ref)
-
+		// If the reference is already cached, use the cached value.
+		if resolved, ok := cache.refs[denormRef]; ok {
 			for _, node := range nodes {
 				node.LineComment = appendOriginalToComment(node.LineComment, node.Value)
 				node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
 			}
-		}()
-	}
-
-	if err := sem.Acquire(ctx, concurrency); err != nil {
-		return fmt.Errorf("failed to wait for semaphore: %w", err)
+		}
 	}
 
 	return merr.ErrorOrNil()

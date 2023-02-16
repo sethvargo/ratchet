@@ -7,8 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sethvargo/ratchet/parser"
+	"github.com/sethvargo/ratchet/internal/yaml"
 	"github.com/sethvargo/ratchet/resolver"
+
+	"github.com/sethvargo/ratchet/parser"
 )
 
 const updateCommandDesc = `Update all pinned versions to the latest value`
@@ -59,23 +61,13 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d %q", got, args)
 	}
 
-	return do(ctx, args[0], c.Do)
+	return do(ctx, args[0], c.Do, c.flagParser, c.flagConcurrency)
 }
 
-func (c *UpdateCommand) Do(ctx context.Context, path string) error {
-	m, err := parseYAMLFile(path)
+func (c *UpdateCommand) Do(ctx context.Context, path string, par parser.Parser, res resolver.Resolver) error {
+	m, err := yaml.ParseFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s: %w", path, err)
-	}
-
-	par, err := parser.For(ctx, c.flagParser)
-	if err != nil {
-		return err
-	}
-
-	res, err := resolver.NewDefaultResolver(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create github resolver: %w", err)
 	}
 
 	if err := parser.Unpin(m); err != nil {
@@ -90,7 +82,7 @@ func (c *UpdateCommand) Do(ctx context.Context, path string) error {
 	if outFile == "" {
 		outFile = path
 	}
-	if err := writeYAMLFile(path, outFile, m); err != nil {
+	if err := yaml.WriteFile(path, outFile, m); err != nil {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
 	}
 

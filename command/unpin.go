@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sethvargo/ratchet/internal/yaml"
+	"github.com/sethvargo/ratchet/resolver"
+
 	"github.com/sethvargo/ratchet/parser"
 )
 
@@ -64,11 +67,11 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d", got)
 	}
 
-	return do(ctx, args[0], c.Do)
+	return do(ctx, args[0], c.Do, "", 0)
 }
 
-func (c *UnpinCommand) Do(ctx context.Context, path string) error {
-	m, err := parseYAMLFile(path)
+func (c *UnpinCommand) Do(ctx context.Context, path string, _ parser.Parser, _ resolver.Resolver) error {
+	m, err := yaml.ParseFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s: %w", path, err)
 	}
@@ -81,7 +84,7 @@ func (c *UnpinCommand) Do(ctx context.Context, path string) error {
 	if outFile == "" {
 		outFile = path
 	}
-	if err := writeYAMLFile(path, outFile, m); err != nil {
+	if err := yaml.WriteFile(path, outFile, m); err != nil {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
 	}
 

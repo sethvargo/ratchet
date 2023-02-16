@@ -4,14 +4,13 @@ package command
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
+
+	"github.com/sethvargo/ratchet/parser"
+	"github.com/sethvargo/ratchet/resolver"
 
 	"github.com/sethvargo/ratchet/internal/walker"
 
-	"gopkg.in/yaml.v3"
-
-	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/internal/version"
 )
 
@@ -27,8 +26,11 @@ var Commands = map[string]Command{
 type Command interface {
 	Desc() string
 	Run(ctx context.Context, args []string) error
-	Do(ctx context.Context, path string) error
+	Do(ctx context.Context, path string, par parser.Parser, res resolver.Resolver) error
 }
+
+// Doer is a type that implements Command.Do() function.
+type Doer func(ctx context.Context, path string, par parser.Parser, res resolver.Resolver) error
 
 // Run executes the main entrypoint for the CLI.
 func Run(ctx context.Context, args []string) error {
@@ -65,103 +67,62 @@ func extractCommandAndArgs(args []string) (string, []string) {
 	}
 }
 
-// writeYAML encodes the yaml node into the given writer.
-func writeYAML(w io.Writer, m *yaml.Node) error {
-	enc := yaml.NewEncoder(w)
-	enc.SetIndent(2)
-	if err := enc.Encode(m); err != nil {
-		return fmt.Errorf("failed to encode yaml: %w", err)
-	}
-	if err := enc.Close(); err != nil {
-		return fmt.Errorf("failed to finalize yaml: %w", err)
-	}
-	return nil
-}
-
-// writeYAMLFile renders the given yaml and atomically writes it to the provided
-// filepath.
-func writeYAMLFile(src, dst string, m *yaml.Node) (retErr error) {
-	r, w := io.Pipe()
-	defer func() {
-		if err := r.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to close reader: %w", err)
-		}
-	}()
-	defer func() {
-		if err := w.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to closer writer: %w", err)
-		}
-	}()
-
-	errCh := make(chan error, 1)
-	go func() {
-		if err := writeYAML(w, m); err != nil {
-			select {
-			case errCh <- fmt.Errorf("failed to render yaml: %w", err):
-			default:
-			}
-		}
-
-		if err := w.Close(); err != nil {
-			select {
-			case errCh <- fmt.Errorf("failed to close writer: %w", err):
-			default:
-			}
-		}
-	}()
-
-	if err := atomic.Write(src, dst, r); err != nil {
-		retErr = fmt.Errorf("failed to save file %s: %w", dst, err)
-		return
-	}
-
-	select {
-	case err := <-errCh:
-		retErr = err
-		return
-	default:
-		return
-	}
-}
-
-// parseYAML parses the given reader as a yaml node.
-func parseYAML(r io.Reader) (*yaml.Node, error) {
-	var m yaml.Node
-	if err := yaml.NewDecoder(r).Decode(&m); err != nil {
-		return nil, fmt.Errorf("failed to decode yaml: %w", err)
-	}
-	return &m, nil
-}
-
-// parseYAMLFile opens the file at the path and parses it as yaml. It closes the
-// file handle.
-func parseYAMLFile(pth string) (m *yaml.Node, retErr error) {
-	f, err := os.Open(pth)
-	if err != nil {
-		retErr = fmt.Errorf("failed to open file: %w", err)
-		return
-	}
-	defer func() {
-		if err := f.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to close file: %w", err)
-		}
-	}()
-
-	m, retErr = parseYAML(f)
-	return
-}
-
 // do calls Run() command as-is, if given path is a file. If the path
 // is a directory, it will walk the directory and issues Run() on each file.
-func do(ctx context.Context, path string, doerFn walker.Doer) error {
+func do(ctx context.Context, path string, doerFn Doer, flagParser string, flagConcurrency int64) error {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("input not found %w", err)
 	}
 
-	if fileInfo.IsDir() {
-		return walker.Walk(ctx, path, doerFn)
+	// Initialize parser and resolver once per command. To avoid
+	// creating unnecessary allocations while we are walking
+	// in a directory.
+	par, res, err := getParserAndResolver(ctx, flagParser)
+	if err != nil {
+		return err
 	}
 
-	return doerFn(ctx, path)
+	// doer is a wrapper around the actual walker.Doer() since
+	// that function takes only a path and a parser. But we need
+	// to pass the par and res args to actual command itself.
+	doer := func(ctx context.Context, path string) error {
+		return doerFn(ctx, path, par, res)
+	}
+
+	if fileInfo.IsDir() {
+		// If this function is called from either `pin` and `update` commands,
+		// we should run the caching logic.
+		if flagParser != "" {
+			nodes, err := walker.Walk(ctx, path, walker.NoOp)
+			if err != nil {
+				return fmt.Errorf("walk %s: %w", path, err)
+			}
+
+			if err := parser.FetchAndCacheReferences(ctx, res, par, nodes, flagConcurrency, false); err != nil {
+				return fmt.Errorf("cache references: %w", err)
+			}
+		}
+
+		// Now we are ready to run the command.
+		_, err := walker.Walk(ctx, path, doer)
+		return err
+	}
+
+	// If the path is a file, keep the as-is behavior.
+	return doer(ctx, path)
+}
+
+func getParserAndResolver(ctx context.Context, flagParser string) (parser.Parser, resolver.Resolver, error) {
+	par, err := parser.For(ctx, flagParser)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	res, err := resolver.NewDefaultResolver(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create github resolver: %w", err)
+	}
+
+	return par, res, nil
 }

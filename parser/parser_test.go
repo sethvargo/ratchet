@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sethvargo/ratchet/internal/walker"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/sethvargo/ratchet/resolver"
@@ -413,6 +415,36 @@ func TestExtractOriginalFromComment(t *testing.T) {
 	}
 }
 
+func TestFetchAndCacheReferences(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		flagParser string
+		cacheItems int
+		wantErr    bool
+	}{
+		{
+			name:       "github workflows dir",
+			path:       "../.github/workflows",
+			flagParser: "actions",
+			cacheItems: 6,
+			wantErr:    false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			par, res := helperParserAndResolver(t, tt.flagParser)
+			nodes := helperPathToYAMLNodes(t, tt.path)
+			if err := FetchAndCacheReferences(context.Background(), res, par, nodes, 2, true); (err != nil) != tt.wantErr {
+				t.Errorf("FetchAndCacheReferences() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if CacheLen() != tt.cacheItems {
+				t.Errorf("FetchAndCacheReferences() cache items = %v, want %v", CacheLen(), tt.cacheItems)
+			}
+		})
+	}
+}
+
 func helperStringToYAML(tb testing.TB, in string) *yaml.Node {
 	tb.Helper()
 
@@ -438,4 +470,30 @@ func helperYAMLToString(tb testing.TB, m *yaml.Node) string {
 	}
 
 	return strings.TrimSpace(b.String())
+}
+
+func helperParserAndResolver(tb testing.TB, flagParser string) (Parser, resolver.Resolver) {
+	tb.Helper()
+
+	parser, err := For(context.Background(), flagParser)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	resolver, err := resolver.NewDefaultResolver(context.Background())
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	return parser, resolver
+}
+
+func helperPathToYAMLNodes(tb testing.TB, path string) []*yaml.Node {
+	tb.Helper()
+
+	nodes, err := walker.Walk(context.Background(), path, walker.NoOp)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	return nodes
 }

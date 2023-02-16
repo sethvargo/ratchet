@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sethvargo/ratchet/internal/yaml"
+	"github.com/sethvargo/ratchet/resolver"
+
 	"github.com/sethvargo/ratchet/parser"
 )
 
@@ -60,18 +63,13 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("expected exactly one argument, got %d", got)
 	}
 
-	return do(ctx, args[0], c.Do)
+	return do(ctx, args[0], c.Do, c.flagParser, 0)
 }
 
-func (c *CheckCommand) Do(ctx context.Context, path string) error {
-	m, err := parseYAMLFile(path)
+func (c *CheckCommand) Do(ctx context.Context, path string, par parser.Parser, _ resolver.Resolver) error {
+	m, err := yaml.ParseFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s: %w", path, err)
-	}
-
-	par, err := parser.For(ctx, c.flagParser)
-	if err != nil {
-		return err
 	}
 
 	if err := parser.Check(ctx, par, m); err != nil {

@@ -35,9 +35,10 @@ FLAGS
 `
 
 type PinCommand struct {
-	flagConcurrency int64
-	flagParser      string
-	flagOut         string
+	flagConcurrency                int64
+	flagParser                     string
+	flagOut                        string
+	flagExperimentalFormatNewlines bool
 }
 
 func (c *PinCommand) Desc() string {
@@ -55,6 +56,7 @@ func (c *PinCommand) Flags() *flag.FlagSet {
 		"maximum number of concurrent resolutions")
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
+	f.BoolVar(&c.flagExperimentalFormatNewlines, "experimental-format-newlines", false, "whether or not to undo removing newlines")
 
 	return f
 }
@@ -104,6 +106,10 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	if err := writeYAMLFile(inFile, outFile, m); err != nil {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
+	}
+
+	if !c.flagExperimentalFormatNewlines {
+		return nil
 	}
 
 	editedContent, err := parseFile(outFile)

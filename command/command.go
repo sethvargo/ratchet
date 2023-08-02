@@ -5,8 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"strings"
 
+	"github.com/hexops/gotextdiff"
+	"github.com/hexops/gotextdiff/myers"
+	"github.com/hexops/gotextdiff/span"
 	"gopkg.in/yaml.v3"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
@@ -146,4 +151,52 @@ func parseYAMLFile(pth string) (m *yaml.Node, retErr error) {
 
 	m, retErr = parseYAML(f)
 	return
+}
+
+func parseFile(pth string) (contents string, retErr error) {
+	f, err := os.Open(pth)
+	if err != nil {
+		retErr = fmt.Errorf("failed to open file: %w", err)
+		return
+	}
+	defer func() {
+		if err := f.Close(); err != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to close file: %w", err)
+		}
+	}()
+	c, retErr := ioutil.ReadAll(f)
+	contents = string(c)
+	return
+}
+
+func removeNewLineChanges(beforeContent string, afterContent string) string {
+	lines := strings.Split(beforeContent, "\n")
+	edits := myers.ComputeEdits(span.URIFromPath("before.txt"), beforeContent, afterContent)
+	unified := gotextdiff.ToUnified("before.txt", "after.txt", beforeContent, edits)
+
+	editedLines := make(map[int]string)
+	for _, h := range unified.Hunks {
+		var deletePositions []int
+		inserts := 0
+		for i, l := range h.Lines {
+			if l.Kind == gotextdiff.Delete && l.Content != "\n" {
+				deletePositions = append(deletePositions, h.FromLine+i-1-inserts)
+			}
+			if l.Kind == gotextdiff.Insert && l.Content != "" {
+				pos := deletePositions[0]
+				deletePositions = deletePositions[1:]
+				editedLines[pos] = strings.TrimSuffix(l.Content, "\n")
+				inserts++
+			}
+		}
+	}
+	var formattedLines []string
+	for i, line := range lines {
+		if editedLine, ok := editedLines[i]; ok {
+			formattedLines = append(formattedLines, editedLine)
+		} else {
+			formattedLines = append(formattedLines, line)
+		}
+	}
+	return strings.Join(formattedLines, "\n")
 }

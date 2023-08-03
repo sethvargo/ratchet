@@ -17,7 +17,7 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 	var imageRef *yaml.Node
 
 	// GitLab CI global top level keywords
-	var globalKeywords = map[string]struct{}{
+	globalKeywords := map[string]struct{}{
 		"default":   {},
 		"include":   {},
 		"stages":    {},
@@ -58,7 +58,6 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 
 					// match image reference with name key
 					if image.Kind == yaml.MappingNode {
-
 						for j, nameRef := range image.Content {
 							if nameRef.Value == "name" {
 								imageRef = image.Content[j+1]

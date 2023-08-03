@@ -203,6 +203,71 @@ jobs:
         with:
           directories: '${{ inputs.directories }}'
 `
+	yamlD = `
+jobs:
+  init:
+    runs-on:    'ubuntu-latest'
+    outputs:
+      directories: '${{ steps.dirs.outputs.directories }}'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
+
+      - name: 'Guardian Directories'
+        id: 'dirs'
+        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
+        with:
+          directories: '${{ inputs.directories }}'
+          thing: |-
+            this is my string
+            it has many lines
+
+            some of them even
+            have new new lines
+`
+	yamlDChanges = `
+jobs:
+  init:
+    runs-on: 'ubuntu-latest'
+    outputs:
+      directories: '${{ steps.dirs.outputs.directories }}'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
+      - name: 'Guardian Directories'
+        id: 'dirs'
+        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
+        with:
+          directories: '${{ inputs.directories }}'
+          thing: |-
+            this is my string
+            it has many lines
+
+            some of them even
+            have new new lines
+`
+	yamlDChangesFormatted = `
+jobs:
+  init:
+    runs-on: 'ubuntu-latest'
+    outputs:
+      directories: '${{ steps.dirs.outputs.directories }}'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
+
+      - name: 'Guardian Directories'
+        id: 'dirs'
+        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
+        with:
+          directories: '${{ inputs.directories }}'
+          thing: |-
+            this is my string
+            it has many lines
+
+            some of them even
+            have new new lines
+`
 )
 
 func Test_removeNewLineChanges(t *testing.T) {
@@ -231,6 +296,12 @@ func Test_removeNewLineChanges(t *testing.T) {
 			yamlBefore: yamlC,
 			yamlAfter:  yamlCChanges,
 			want:       yamlCChangesFormatted,
+		},
+		{
+			name:       "yamlD_multiline_string",
+			yamlBefore: yamlD,
+			yamlAfter:  yamlDChanges,
+			want:       yamlDChangesFormatted,
 		},
 	}
 

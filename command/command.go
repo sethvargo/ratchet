@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -164,18 +163,22 @@ func parseFile(pth string) (contents string, retErr error) {
 			retErr = fmt.Errorf("failed to close file: %w", err)
 		}
 	}()
-	c, retErr := ioutil.ReadAll(f)
+	c, retErr := io.ReadAll(f)
 	contents = string(c)
 	return
 }
 
-func removeNewLineChanges(beforeContent string, afterContent string) string {
+func removeNewLineChanges(beforeContent, afterContent string) string {
 	lines := strings.Split(beforeContent, "\n")
 	edits := myers.ComputeEdits(span.URIFromPath("before.txt"), beforeContent, afterContent)
 	unified := gotextdiff.ToUnified("before.txt", "after.txt", beforeContent, edits)
 
 	editedLines := make(map[int]string)
+	// Iterates through all changes and only keep changes to lines that are not empty.
 	for _, h := range unified.Hunks {
+		// Changes are in-order of delete line followed by insert line for lines that were modified.
+		// We want to locate the position of all deletes of non-empty lines and replace
+		// these in the original content with the modified line.
 		var deletePositions []int
 		inserts := 0
 		for i, l := range h.Lines {

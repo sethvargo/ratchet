@@ -105,7 +105,6 @@ job2:
 			m := helperStringToYAML(t, tc.in)
 
 			refs, err := new(GitLabCI).Parse(m)
-
 			if err != nil {
 				fmt.Println(refs)
 				t.Fatal(err)

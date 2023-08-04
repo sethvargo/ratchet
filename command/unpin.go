@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/parser"
 )
 
@@ -65,6 +66,11 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 	}
 
 	inFile := args[0]
+	uneditedContent, err := parseFile(inFile)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+	}
+
 	m, err := parseYAMLFile(inFile)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s: %w", inFile, err)
@@ -80,6 +86,20 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 	}
 	if err := writeYAMLFile(inFile, outFile, m); err != nil {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
+	}
+
+	if !keepNewlinesEnv() {
+		return nil
+	}
+
+	editedContent, err := parseFile(outFile)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s: %w", outFile, err)
+	}
+
+	final := removeNewLineChanges(uneditedContent, editedContent)
+	if err := atomic.Write(inFile, outFile, strings.NewReader(final)); err != nil {
+		return fmt.Errorf("failed to save file %s: %w", outFile, err)
 	}
 
 	return nil

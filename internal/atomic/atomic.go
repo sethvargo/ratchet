@@ -10,11 +10,11 @@ import (
 const (
 	// DefaultFilePerm are the default file permission to use when the permissions
 	// cannot be determined from the existing file.
-	DefaultFilePerm os.FileMode = 0644
+	DefaultFilePerm os.FileMode = 0o644
 
 	// DefaultFolderPerm is the default permission to use when creating parent
 	// directories, if they do not already exist.
-	DefaultFolderPerm os.FileMode = 0755
+	DefaultFolderPerm os.FileMode = 0o755
 )
 
 // AtomicWrite accepts a destination path and an reader. It copies the contents

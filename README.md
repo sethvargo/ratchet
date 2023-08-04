@@ -139,8 +139,7 @@ applies to cli commands that modify output.
 
 ##### Usage
 
-Enable via environment variable `RATCHET_EXP_KEEP_NEWLINES=true` or
-flag `-experimental-keep-newlines`.
+Enable via environment variable `RATCHET_EXP_KEEP_NEWLINES=true`.
 
 ## Examples
 

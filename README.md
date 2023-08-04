@@ -231,7 +231,7 @@ only applies to the line on which it appears.
     for indentation.
 
 -   Leading and trailing whitespace between nodes is not preserved (to preserve newlines try using
-    [Experimental Keep Newlines](#option_experimental-keep-newlines)). Similar to
+    [Experimental Keep Newlines](#option---experimental-keep-newlines)). Similar to
     indentation, the upstream YAML library does not capture truly empty nodes.
     Thus, blank lines may be removed between nodes. This will not affect
     multi-line values.

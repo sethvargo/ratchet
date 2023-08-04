@@ -63,7 +63,7 @@ There are a few options for installing ratchet:
 ## Usage
 
 For more information about available commands and options, run a command with
-`-help` to use detailed usage instructions.
+`-help` to use detailed usage instructions. Also see [CLI Options](#cli-options).
 
 #### Pin
 
@@ -127,6 +127,20 @@ error code when entries are not pinned:
 ```shell
 ./ratchet check workflow.yml
 ```
+
+### CLI Options
+
+Use these options to configure the default behavior of Ratchet.
+
+#### Option - Experimental Keep Newlines
+
+Experimental functionality to enable keeping newlines in the output. Only
+applies to cli commands that modify output.
+
+##### Usage
+
+Enable via environment variable `RATCHET_EXP_KEEP_NEWLINES=true` or
+flag `-experimental-keep-newlines`.
 
 ## Examples
 
@@ -216,7 +230,8 @@ only applies to the line on which it appears.
     capture pre-parsing indentation. Thus, all files will be saved with 2 spaces
     for indentation.
 
--   Leading and trailing whitespace between nodes is not preserved. Similar to
+-   Leading and trailing whitespace between nodes is not preserved (to preserve newlines try using
+    [Experimental Keep Newlines](#option_experimental-keep-newlines)). Similar to
     indentation, the upstream YAML library does not capture truly empty nodes.
     Thus, blank lines may be removed between nodes. This will not affect
     multi-line values.

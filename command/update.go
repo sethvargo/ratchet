@@ -97,7 +97,7 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
 	}
 
-	if !c.PinCommand.flagExperimentalFormatNewlines {
+	if !c.PinCommand.flagExperimentalKeepNewlines {
 		return nil
 	}
 

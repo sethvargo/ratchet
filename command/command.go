@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/hexops/gotextdiff"
@@ -52,6 +53,16 @@ func Run(ctx context.Context, args []string) error {
 	}
 
 	return cmd.Run(ctx, args)
+}
+
+func keepNewlinesEnv() bool {
+	value := false
+	if v, ok := os.LookupEnv("RATCHET_EXP_KEEP_NEWLINES"); ok {
+		if t, err := strconv.ParseBool(v); err == nil {
+			value = t
+		}
+	}
+	return value
 }
 
 // extractCommandAndArgs is a helper that pulls the subcommand and arguments.

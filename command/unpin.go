@@ -34,8 +34,8 @@ FLAGS
 `
 
 type UnpinCommand struct {
-	flagOut                        string
-	flagExperimentalFormatNewlines bool
+	flagOut                      string
+	flagExperimentalKeepNewlines bool
 }
 
 func (c *UnpinCommand) Desc() string {
@@ -50,7 +50,7 @@ func (c *UnpinCommand) Flags() *flag.FlagSet {
 	}
 
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
-	f.BoolVar(&c.flagExperimentalFormatNewlines, "experimental-format-newlines", false, "whether or not to undo removing newlines")
+	f.BoolVar(&c.flagExperimentalKeepNewlines, "experimental-keep-newlines", keepNewlinesEnv(), "")
 
 	return f
 }
@@ -90,7 +90,7 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to save %s: %w", outFile, err)
 	}
 
-	if !c.flagExperimentalFormatNewlines {
+	if !c.flagExperimentalKeepNewlines {
 		return nil
 	}
 

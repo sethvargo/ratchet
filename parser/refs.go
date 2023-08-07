@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/yaml.v3"
+	"github.com/braydonk/yaml"
 )
 
 type RefsList struct {

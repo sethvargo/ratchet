@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	"github.com/braydonk/yaml"
 
 	"github.com/sethvargo/ratchet/resolver"
 )

@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/braydonk/yaml"
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
 	"github.com/hexops/gotextdiff/span"
-	"gopkg.in/yaml.v3"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/internal/version"

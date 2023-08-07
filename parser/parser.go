@@ -7,9 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/braydonk/yaml"
+
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/semaphore"
-	"gopkg.in/yaml.v3"
 
 	"github.com/sethvargo/ratchet/resolver"
 )

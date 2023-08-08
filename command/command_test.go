@@ -1,8 +1,17 @@
 package command
 
 import (
+	"bytes"
+	"fmt"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
+
+	// Using banydonk/yaml instead of the default yaml pkg because the default
+	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
+	"github.com/braydonk/yaml"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -318,4 +327,69 @@ func Test_removeNewLineChanges(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_parseYAMLFile(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name         string
+		yamlFilename string
+		want         string
+	}{
+		{
+			name:         "yamlA_multiple_empty_lines",
+			yamlFilename: "testdata/github.yml",
+			want: `jobs:
+    my_job:
+        runs-on: 'ubuntu-latest'
+        container:
+            image: 'ubuntu:20.04'
+        services:
+            nginx:
+                image: 'nginx:1.21'
+        steps:
+            - uses: 'actions/checkout@v3'
+            - uses: 'docker://ubuntu:20.04'
+              with:
+                uses: '/path/to/user.png'
+                image: '/path/to/image.jpg'
+            - runs: |-
+                echo "Hello 😀"
+    other_job:
+        uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+    final_job:
+        uses: './local/path/to/action'
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			node, err := parseYAMLFile(rootPath(tc.yamlFilename))
+			if err != nil {
+				t.Errorf("parseYAMLFile() returned error: %v", err)
+			}
+			var buf bytes.Buffer
+			err = yaml.NewEncoder(&buf).Encode(node)
+			if err != nil {
+				t.Errorf("failed to marshal yaml to string: %v", err)
+			}
+			got := buf.String()
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("removeBindingFromPolicy() returned diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func rootPath(filename string) (fn string) {
+	_, fn, _, _ = runtime.Caller(0)
+	repoRoot := filepath.Dir(filepath.Dir(fn))
+	return fmt.Sprintf("%s/%s", repoRoot, filename)
 }

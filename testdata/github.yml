@@ -17,6 +17,9 @@ jobs:
         uses: '/path/to/user.png'
         image: '/path/to/image.jpg'
 
+    - runs: |-
+        echo "Hello 😀"
+
   other_job:
     uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
 

@@ -9,10 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	// Using banydonk/yaml instead of the default yaml pkg because the default
+	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
+	"github.com/braydonk/yaml"
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
 	"github.com/hexops/gotextdiff/span"
-	"gopkg.in/yaml.v3"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/internal/version"

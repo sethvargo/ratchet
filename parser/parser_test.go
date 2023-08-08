@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	// Using banydonk/yaml instead of the default yaml pkg because the default
+	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
+	"github.com/braydonk/yaml"
 
 	"github.com/sethvargo/ratchet/resolver"
 )

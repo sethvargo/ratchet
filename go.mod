@@ -3,13 +3,14 @@ module github.com/sethvargo/ratchet
 go 1.19
 
 require (
+	github.com/braydonk/yaml v0.7.0
+	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.14.0
 	github.com/google/go-github/v51 v51.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hexops/gotextdiff v1.0.3
 	golang.org/x/oauth2 v0.7.0
 	golang.org/x/sync v0.1.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

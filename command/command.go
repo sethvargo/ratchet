@@ -58,7 +58,7 @@ func Run(ctx context.Context, args []string) error {
 }
 
 func keepNewlinesEnv() bool {
-	value := false
+	value := true
 	if v, ok := os.LookupEnv("RATCHET_EXP_KEEP_NEWLINES"); ok {
 		if t, err := strconv.ParseBool(v); err == nil {
 			value = t

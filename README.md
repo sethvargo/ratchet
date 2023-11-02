@@ -128,19 +128,6 @@ error code when entries are not pinned:
 ./ratchet check workflow.yml
 ```
 
-### CLI Options
-
-Use these options to configure the default behavior of Ratchet.
-
-#### Option - Experimental Keep Newlines
-
-Experimental functionality to enable keeping newlines in the output. Only
-applies to cli commands that modify output.
-
-##### Usage
-
-Enable via environment variable `RATCHET_EXP_KEEP_NEWLINES=true`.
-
 ## Examples
 
 #### CI/CD workflow
@@ -255,6 +242,17 @@ only applies to the line on which it appears.
         steps:
           - uses: 'actions/checkout@v${{ matrix.version }}'
     ```
+
+## Experiments
+
+Use these options to configure the default behavior of Ratchet.
+
+### Experiment: Keep Newlines
+
+Experimental functionality to enable keeping newlines in the output. This only
+applies to cli commands that modify output. As of v0.5.0, this functionality is
+enabled by default. To disable it, set the environment variable
+`RATCHET_EXP_KEEP_NEWLINES=false`.
 
 [containers]: https://github.com/sethvargo/ratchet/pkgs/container/ratchet
 [releases]: https://github.com/sethvargo/ratchet/releases

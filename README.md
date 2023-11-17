@@ -216,12 +216,6 @@ only applies to the line on which it appears.
     capture pre-parsing indentation. Thus, all files will be saved with 2 spaces
     for indentation.
 
--   Leading and trailing whitespace between nodes is not preserved (to preserve newlines try using
-    [Experimental Keep Newlines](#option---experimental-keep-newlines)). Similar to
-    indentation, the upstream YAML library does not capture truly empty nodes.
-    Thus, blank lines may be removed between nodes. This will not affect
-    multi-line values.
-
 -   Does not support resolving values in anchors or aliases. This is technically
     possible, but most CI systems also don't support these advanced YAML
     features.

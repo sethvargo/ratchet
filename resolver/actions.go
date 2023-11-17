@@ -36,15 +36,13 @@ func NewActions(ctx context.Context) (*Actions, error) {
 	}
 	httpClient.Timeout = 10 * time.Second
 
-	var client *github.Client
+	client := github.NewClient(httpClient)
 	if ActionsBaseURL != "" {
 		var err error
-		client, err = github.NewEnterpriseClient(ActionsBaseURL, ActionsUploadURL, httpClient)
+		client, err = client.WithEnterpriseURLs(ActionsBaseURL, ActionsUploadURL)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse github enterprise endpoints: %w", err)
+			return nil, fmt.Errorf("failed to create enterprise github client: %w", err)
 		}
-	} else {
-		client = github.NewClient(httpClient)
 	}
 
 	return &Actions{

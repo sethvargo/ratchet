@@ -2,6 +2,7 @@ package parser
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
 
-	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/sethvargo/ratchet/resolver"
@@ -113,7 +113,7 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 	sem := semaphore.NewWeighted(concurrency)
 
 	var merrLock sync.Mutex
-	var merr *multierror.Error
+	var merr error
 
 	for ref, nodes := range refs {
 		ref := ref
@@ -148,7 +148,7 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 			resolved, err := res.Resolve(ctx, ref)
 			if err != nil {
 				merrLock.Lock()
-				merr = multierror.Append(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
+				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
 				merrLock.Unlock()
 			}
 
@@ -165,7 +165,7 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 		return fmt.Errorf("failed to wait for semaphore: %w", err)
 	}
 
-	return merr.ErrorOrNil()
+	return merr
 }
 
 // Unpin removes any pinned references and updates the actual YAML to be the

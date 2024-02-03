@@ -3,6 +3,8 @@ package parser
 import (
 	"reflect"
 	"testing"
+
+	"github.com/braydonk/yaml"
 )
 
 func TestActions_Parse(t *testing.T) {
@@ -99,7 +101,7 @@ runs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			refs, err := new(Actions).Parse(m)
+			refs, err := new(Actions).Parse([]*yaml.Node{m})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -6,26 +6,34 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-
 	"github.com/sethvargo/ratchet/resolver"
 )
 
 type Drone struct{}
 
-// Parse pulls the Drone Ci refs from the document.
-func (D *Drone) Parse(m *yaml.Node) (*RefsList, error) {
+// Parse pulls the Drone Ci refs from the documents.
+func (d *Drone) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	if m == nil {
-		return nil, nil
+	for i, node := range nodes {
+		if err := d.parseOne(&refs, node); err != nil {
+			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+		}
 	}
 
-	if m.Kind != yaml.DocumentNode {
-		return nil, fmt.Errorf("expected document node, got %v", m.Kind)
+	return &refs, nil
+}
+
+func (d *Drone) parseOne(refs *RefsList, node *yaml.Node) error {
+	if node == nil {
+		return nil
 	}
 
-	for _, docMap := range m.Content {
+	if node.Kind != yaml.DocumentNode {
+		return fmt.Errorf("expected document node, got %v", node.Kind)
+	}
 
+	for _, docMap := range node.Content {
 		if docMap.Kind != yaml.MappingNode {
 			continue
 		}
@@ -58,5 +66,5 @@ func (D *Drone) Parse(m *yaml.Node) (*RefsList, error) {
 		}
 	}
 
-	return &refs, nil
+	return nil
 }

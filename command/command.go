@@ -2,11 +2,13 @@
 package command
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"flag"
 	"fmt"
-	"io"
+	"io/fs"
 	"os"
-	"strconv"
 	"strings"
 
 	// Using banydonk/yaml instead of the default yaml pkg because the default
@@ -15,8 +17,6 @@ import (
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
 	"github.com/hexops/gotextdiff/span"
-
-	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/internal/version"
 )
 
@@ -57,14 +57,26 @@ func Run(ctx context.Context, args []string) error {
 	return cmd.Run(ctx, args)
 }
 
-func keepNewlinesEnv() bool {
-	value := true
-	if v, ok := os.LookupEnv("RATCHET_EXP_KEEP_NEWLINES"); ok {
-		if t, err := strconv.ParseBool(v); err == nil {
-			value = t
+// parseFlags is a helper that parses flags. Unlike [flags.Parse], it handles
+// flags that occur after or between positional arguments.
+func parseFlags(f *flag.FlagSet, args []string) ([]string, error) {
+	var finalArgs []string
+	var merr error
+
+	merr = errors.Join(merr, f.Parse(args))
+
+	for i := len(args) - len(f.Args()) + 1; i < len(args); {
+		// Stop parsing if we hit an actual "stop parsing"
+		if i > 1 && args[i-2] == "--" {
+			break
 		}
+		finalArgs = append(finalArgs, f.Arg(0))
+		merr = errors.Join(merr, f.Parse(args[i:]))
+		i += 1 + len(args[i:]) - len(f.Args())
 	}
-	return value
+	finalArgs = append(finalArgs, f.Args()...)
+
+	return finalArgs, merr
 }
 
 // extractCommandAndArgs is a helper that pulls the subcommand and arguments.
@@ -79,106 +91,59 @@ func extractCommandAndArgs(args []string) (string, []string) {
 	}
 }
 
-// writeYAML encodes the yaml node into the given writer.
-func writeYAML(w io.Writer, m *yaml.Node) error {
-	enc := yaml.NewEncoder(w)
+// marshalYAML encodes the yaml node into the given writer.
+func marshalYAML(m *yaml.Node) ([]byte, error) {
+	var b bytes.Buffer
+
+	enc := yaml.NewEncoder(&b)
 	enc.SetIndent(2)
 	if err := enc.Encode(m); err != nil {
-		return fmt.Errorf("failed to encode yaml: %w", err)
+		return nil, fmt.Errorf("failed to encode yaml: %w", err)
 	}
 	if err := enc.Close(); err != nil {
-		return fmt.Errorf("failed to finalize yaml: %w", err)
+		return nil, fmt.Errorf("failed to finalize yaml: %w", err)
 	}
-	return nil
+	return b.Bytes(), nil
 }
 
-// writeYAMLFile renders the given yaml and atomically writes it to the provided
-// filepath.
-func writeYAMLFile(src, dst string, m *yaml.Node) (retErr error) {
-	r, w := io.Pipe()
-	defer func() {
-		if err := r.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to close reader: %w", err)
-		}
-	}()
-	defer func() {
-		if err := w.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to closer writer: %w", err)
-		}
-	}()
-
-	errCh := make(chan error, 1)
-	go func() {
-		if err := writeYAML(w, m); err != nil {
-			select {
-			case errCh <- fmt.Errorf("failed to render yaml: %w", err):
-			default:
-			}
-		}
-
-		if err := w.Close(); err != nil {
-			select {
-			case errCh <- fmt.Errorf("failed to close writer: %w", err):
-			default:
-			}
-		}
-	}()
-
-	if err := atomic.Write(src, dst, r); err != nil {
-		retErr = fmt.Errorf("failed to save file %s: %w", dst, err)
-		return
-	}
-
-	select {
-	case err := <-errCh:
-		retErr = err
-		return
-	default:
-		return
-	}
+type loadResult struct {
+	path     string
+	node     *yaml.Node
+	contents []byte
 }
 
-// parseYAML parses the given reader as a yaml node.
-func parseYAML(r io.Reader) (*yaml.Node, error) {
-	var m yaml.Node
-	if err := yaml.NewDecoder(r).Decode(&m); err != nil {
-		return nil, fmt.Errorf("failed to decode yaml: %w", err)
+type loadResults []*loadResult
+
+func (r loadResults) nodes() []*yaml.Node {
+	n := make([]*yaml.Node, 0, len(r))
+	for _, v := range r {
+		n = append(n, v.node)
 	}
-	return &m, nil
+	return n
 }
 
-// parseYAMLFile opens the file at the path and parses it as yaml. It closes the
-// file handle.
-func parseYAMLFile(pth string) (m *yaml.Node, retErr error) {
-	f, err := os.Open(pth)
-	if err != nil {
-		retErr = fmt.Errorf("failed to open file: %w", err)
-		return
-	}
-	defer func() {
-		if err := f.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to close file: %w", err)
-		}
-	}()
+func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
+	r := make(loadResults, 0, len(paths))
 
-	m, retErr = parseYAML(f)
-	return
-}
-
-func parseFile(pth string) (contents string, retErr error) {
-	f, err := os.Open(pth)
-	if err != nil {
-		retErr = fmt.Errorf("failed to open file: %w", err)
-		return
-	}
-	defer func() {
-		if err := f.Close(); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to close file: %w", err)
+	for _, pth := range paths {
+		contents, err := fs.ReadFile(fsys, pth)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file %s: %w", pth, err)
 		}
-	}()
-	c, retErr := io.ReadAll(f)
-	contents = string(c)
-	return
+
+		var node yaml.Node
+		if err := yaml.Unmarshal(contents, &node); err != nil {
+			return nil, fmt.Errorf("failed to parse yaml for %s: %w", pth, err)
+		}
+
+		r = append(r, &loadResult{
+			path:     pth,
+			node:     &node,
+			contents: contents,
+		})
+	}
+
+	return r, nil
 }
 
 func removeNewLineChanges(beforeContent, afterContent string) string {

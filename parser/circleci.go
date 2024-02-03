@@ -6,28 +6,37 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-
 	"github.com/sethvargo/ratchet/resolver"
 )
 
 type CircleCI struct{}
 
-// Parse pulls the CircleCI refs from the document. Unfortunately it does not
+// Parse pulls the CircleCI refs from the documents. Unfortunately it does not
 // process "orbs" because there is no documented API for resolving orbs to an
 // absolute version.
-func (C *CircleCI) Parse(m *yaml.Node) (*RefsList, error) {
+func (c *CircleCI) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	if m == nil {
-		return nil, nil
+	for i, node := range nodes {
+		if err := c.parseOne(&refs, node); err != nil {
+			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+		}
 	}
 
-	if m.Kind != yaml.DocumentNode {
-		return nil, fmt.Errorf("expected document node, got %v", m.Kind)
+	return &refs, nil
+}
+
+func (c *CircleCI) parseOne(refs *RefsList, node *yaml.Node) error {
+	if node == nil {
+		return nil
+	}
+
+	if node.Kind != yaml.DocumentNode {
+		return fmt.Errorf("expected document node, got %v", node.Kind)
 	}
 
 	// Top-level object map
-	for _, docMap := range m.Content {
+	for _, docMap := range node.Content {
 		if docMap.Kind != yaml.MappingNode {
 			continue
 		}
@@ -74,5 +83,5 @@ func (C *CircleCI) Parse(m *yaml.Node) (*RefsList, error) {
 		}
 	}
 
-	return &refs, nil
+	return nil
 }

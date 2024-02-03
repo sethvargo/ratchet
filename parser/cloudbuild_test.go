@@ -3,6 +3,8 @@ package parser
 import (
 	"reflect"
 	"testing"
+
+	"github.com/braydonk/yaml"
 )
 
 func TestCloudBuild_Parse(t *testing.T) {
@@ -42,7 +44,7 @@ steps:
 
 			m := helperStringToYAML(t, tc.in)
 
-			refs, err := new(CloudBuild).Parse(m)
+			refs, err := new(CloudBuild).Parse([]*yaml.Node{m})
 			if err != nil {
 				t.Fatal(err)
 			}

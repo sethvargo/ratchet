@@ -11,10 +11,8 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-
-	"golang.org/x/sync/semaphore"
-
 	"github.com/sethvargo/ratchet/resolver"
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -25,7 +23,7 @@ const (
 // Parser defines an interface which parses references out of the given yaml
 // node.
 type Parser interface {
-	Parse(m *yaml.Node) (*RefsList, error)
+	Parse(nodes []*yaml.Node) (*RefsList, error)
 }
 
 var parserFactory = map[string]func() Parser{
@@ -58,8 +56,8 @@ func List() []string {
 
 // Check iterates over all references in the yaml and checks if they are pinned
 // to an absolute reference. It ignores "ratchet:exclude" nodes from the lookup.
-func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
-	refsList, err := parser.Parse(m)
+func Check(ctx context.Context, parser Parser, nodes []*yaml.Node) error {
+	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
 	}
@@ -67,6 +65,12 @@ func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
 
 	var unpinned []string
 	for ref, nodes := range refs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		ref = resolver.DenormalizeRef(ref)
 
 		// Pre-filter any nodes that should be excluded from the lookup.
@@ -95,8 +99,8 @@ func Check(ctx context.Context, parser Parser, m *yaml.Node) error {
 
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
-func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node, concurrency int64) error {
-	refsList, err := parser.Parse(m)
+func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64) error {
+	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
 	}
@@ -175,20 +179,22 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, m *yaml.Node
 //
 // This function does not make any outbound network calls and relies solely on
 // information in the document.
-func Unpin(m *yaml.Node) error {
-	if m == nil {
-		return nil
-	}
-
-	if m.LineComment != "" && !shouldExclude(m.LineComment) {
-		if v, rest := extractOriginalFromComment(m.LineComment); v != "" {
-			m.Value = v
-			m.LineComment = rest
+func Unpin(ctx context.Context, nodes []*yaml.Node) error {
+	for _, node := range nodes {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
-	}
 
-	for _, child := range m.Content {
-		if err := Unpin(child); err != nil {
+		if node.LineComment != "" && !shouldExclude(node.LineComment) {
+			if v, rest := extractOriginalFromComment(node.LineComment); v != "" {
+				node.Value = v
+				node.LineComment = rest
+			}
+		}
+
+		if err := Unpin(ctx, node.Content); err != nil {
 			return err
 		}
 	}

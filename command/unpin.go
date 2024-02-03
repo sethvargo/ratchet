@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
@@ -14,6 +15,8 @@ import (
 const unpinCommandDesc = `Revert pinned versions to their unpinned values`
 
 const unpinCommandHelp = `
+Usage: ratchet unpin [FILE...]
+
 The "unpin" command reverts any pinned versions to their non-absolute or
 relative version for the given input file:
 
@@ -54,52 +57,44 @@ func (c *UnpinCommand) Flags() *flag.FlagSet {
 }
 
 func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
-	f := c.Flags()
-
-	if err := f.Parse(originalArgs); err != nil {
+	args, err := parseFlags(c.Flags(), originalArgs)
+	if err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
 	}
 
-	args := f.Args()
-	if got := len(args); got != 1 {
-		return fmt.Errorf("expected exactly one argument, got %d", got)
-	}
+	fsys := os.DirFS(".")
 
-	inFile := args[0]
-	uneditedContent, err := parseFile(inFile)
+	files, err := loadYAMLFiles(fsys, args)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+		return err
 	}
 
-	m, err := parseYAMLFile(inFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+	if len(files) > 1 && c.flagOut != "" && !strings.HasSuffix(c.flagOut, "/") {
+		return fmt.Errorf("-out must be a directory when pinning multiple files")
 	}
 
-	if err := parser.Unpin(m); err != nil {
-		return fmt.Errorf("failed to upin refs: %w", err)
+	if err := parser.Unpin(ctx, files.nodes()); err != nil {
+		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	outFile := c.flagOut
-	if outFile == "" {
-		outFile = inFile
-	}
-	if err := writeYAMLFile(inFile, outFile, m); err != nil {
-		return fmt.Errorf("failed to save %s: %w", outFile, err)
-	}
+	for _, f := range files {
+		outFile := c.flagOut
+		if strings.HasSuffix(c.flagOut, "/") {
+			outFile = filepath.Join(c.flagOut, f.path)
+		}
+		if outFile == "" {
+			outFile = f.path
+		}
 
-	if !keepNewlinesEnv() {
-		return nil
-	}
+		updated, err := marshalYAML(f.node)
+		if err != nil {
+			return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
+		}
 
-	editedContent, err := parseFile(outFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", outFile, err)
-	}
-
-	final := removeNewLineChanges(uneditedContent, editedContent)
-	if err := atomic.Write(inFile, outFile, strings.NewReader(final)); err != nil {
-		return fmt.Errorf("failed to save file %s: %w", outFile, err)
+		final := removeNewLineChanges(string(f.contents), string(updated))
+		if err := atomic.Write(f.path, outFile, strings.NewReader(final)); err != nil {
+			return fmt.Errorf("failed to save file %s: %w", outFile, err)
+		}
 	}
 
 	return nil

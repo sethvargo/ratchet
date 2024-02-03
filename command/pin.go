@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
@@ -16,6 +17,8 @@ import (
 const pinCommandDesc = `Resolve and pin all versions`
 
 const pinCommandHelp = `
+Usage: ratchet pin [FILE...]
+
 The "pin" command resolves and pins any unpinned versions to their absolute or
 hashed version for the given input file:
 
@@ -60,27 +63,9 @@ func (c *PinCommand) Flags() *flag.FlagSet {
 }
 
 func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
-	f := c.Flags()
-
-	if err := f.Parse(originalArgs); err != nil {
+	args, err := parseFlags(c.Flags(), originalArgs)
+	if err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
-	}
-
-	args := f.Args()
-	if got := len(args); got != 1 {
-		return fmt.Errorf("expected exactly one argument, got %d", got)
-	}
-
-	inFile := args[0]
-
-	uneditedContent, err := parseFile(inFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
-	}
-
-	m, err := parseYAMLFile(inFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
 	}
 
 	par, err := parser.For(ctx, c.flagParser)
@@ -90,34 +75,42 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	res, err := resolver.NewDefaultResolver(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create github resolver: %w", err)
+		return fmt.Errorf("failed to create resolver: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, m, c.flagConcurrency); err != nil {
+	fsys := os.DirFS(".")
+
+	files, err := loadYAMLFiles(fsys, args)
+	if err != nil {
+		return err
+	}
+
+	if len(files) > 1 && c.flagOut != "" && !strings.HasSuffix(c.flagOut, "/") {
+		return fmt.Errorf("-out must be a directory when pinning multiple files")
+	}
+
+	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	outFile := c.flagOut
-	if outFile == "" {
-		outFile = inFile
-	}
+	for _, f := range files {
+		outFile := c.flagOut
+		if strings.HasSuffix(c.flagOut, "/") {
+			outFile = filepath.Join(c.flagOut, f.path)
+		}
+		if outFile == "" {
+			outFile = f.path
+		}
 
-	if err := writeYAMLFile(inFile, outFile, m); err != nil {
-		return fmt.Errorf("failed to save %s: %w", outFile, err)
-	}
+		updated, err := marshalYAML(f.node)
+		if err != nil {
+			return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
+		}
 
-	if !keepNewlinesEnv() {
-		return nil
-	}
-
-	editedContent, err := parseFile(outFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", outFile, err)
-	}
-
-	final := removeNewLineChanges(uneditedContent, editedContent)
-	if err := atomic.Write(inFile, outFile, strings.NewReader(final)); err != nil {
-		return fmt.Errorf("failed to save file %s: %w", outFile, err)
+		final := removeNewLineChanges(string(f.contents), string(updated))
+		if err := atomic.Write(f.path, outFile, strings.NewReader(final)); err != nil {
+			return fmt.Errorf("failed to save file %s: %w", outFile, err)
+		}
 	}
 
 	return nil

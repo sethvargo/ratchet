@@ -2,14 +2,10 @@ package command
 
 import (
 	"bytes"
-	"fmt"
-	"path/filepath"
+	"os"
 	"reflect"
-	"runtime"
 	"testing"
 
-	// Using banydonk/yaml instead of the default yaml pkg because the default
-	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
 	"github.com/google/go-cmp/cmp"
 )
@@ -232,7 +228,7 @@ jobs:
             it has many lines
 
             some of them even
-            have new new lines
+            have new lines
 `
 	yamlDChanges = `
 jobs:
@@ -253,7 +249,7 @@ jobs:
             it has many lines
 
             some of them even
-            have new new lines
+            have new lines
 `
 	yamlDChangesFormatted = `
 jobs:
@@ -275,7 +271,7 @@ jobs:
             it has many lines
 
             some of them even
-            have new new lines
+            have new lines
 `
 )
 
@@ -329,17 +325,17 @@ func Test_removeNewLineChanges(t *testing.T) {
 	}
 }
 
-func Test_parseYAMLFile(t *testing.T) {
+func Test_loadYAMLFiles(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name         string
-		yamlFilename string
-		want         string
+		name          string
+		yamlFilenames []string
+		want          string
 	}{
 		{
-			name:         "yamlA_multiple_empty_lines",
-			yamlFilename: "testdata/github.yml",
+			name:          "yamlA_multiple_empty_lines",
+			yamlFilenames: []string{"testdata/github.yml"},
 			want: `jobs:
     my_job:
         runs-on: 'ubuntu-latest'
@@ -370,26 +366,20 @@ func Test_parseYAMLFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			node, err := parseYAMLFile(rootPath(tc.yamlFilename))
+			files, err := loadYAMLFiles(os.DirFS(".."), tc.yamlFilenames)
 			if err != nil {
-				t.Errorf("parseYAMLFile() returned error: %v", err)
+				t.Fatalf("loadYAMLFiles() returned error: %s", err)
 			}
+
 			var buf bytes.Buffer
-			err = yaml.NewEncoder(&buf).Encode(node)
-			if err != nil {
-				t.Errorf("failed to marshal yaml to string: %v", err)
+			if err := yaml.NewEncoder(&buf).Encode(files.nodes()[0]); err != nil {
+				t.Errorf("failed to marshal yaml to string: %s", err)
 			}
 			got := buf.String()
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("removeBindingFromPolicy() returned diff (-want +got):\n%s", diff)
+				t.Errorf("returned diff (-want, +got):\n%s", diff)
 			}
 		})
 	}
-}
-
-func rootPath(filename string) (fn string) {
-	_, fn, _, _ = runtime.Caller(0)
-	repoRoot := filepath.Dir(filepath.Dir(fn))
-	return fmt.Sprintf("%s/%s", repoRoot, filename)
 }

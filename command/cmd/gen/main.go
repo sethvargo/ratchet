@@ -38,7 +38,7 @@ func realMain() error {
 
 	root := folderRoot()
 	pth := path.Join(root, "command_gen.go")
-	if err := os.WriteFile(pth, w.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(pth, w.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("failed to write generated file: %w", err)
 	}
 

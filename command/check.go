@@ -13,6 +13,8 @@ import (
 const checkCommandDesc = `Check if all versions are pinned`
 
 const checkCommandHelp = `
+Usage: ratchet check [FILE...]
+
 The "check" command checks if all versions are pinned to an absolute version,
 ignoring any versions with the "ratchet:exclude" comment.
 
@@ -48,21 +50,9 @@ func (c *CheckCommand) Flags() *flag.FlagSet {
 }
 
 func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
-	f := c.Flags()
-
-	if err := f.Parse(originalArgs); err != nil {
-		return fmt.Errorf("failed to parse flags: %w", err)
-	}
-
-	args := f.Args()
-	if got := len(args); got != 1 {
-		return fmt.Errorf("expected exactly one argument, got %d", got)
-	}
-
-	inFile := args[0]
-	m, err := parseYAMLFile(inFile)
+	args, err := parseFlags(c.Flags(), originalArgs)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", inFile, err)
+		return fmt.Errorf("failed to parse flags: %w", err)
 	}
 
 	par, err := parser.For(ctx, c.flagParser)
@@ -70,9 +60,12 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	if err := parser.Check(ctx, par, m); err != nil {
-		return fmt.Errorf("check failed: %w", err)
+	fsys := os.DirFS(".")
+
+	files, err := loadYAMLFiles(fsys, args)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return parser.Check(ctx, par, files.nodes())
 }

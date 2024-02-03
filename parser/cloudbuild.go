@@ -6,26 +6,35 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-
 	"github.com/sethvargo/ratchet/resolver"
 )
 
 type CloudBuild struct{}
 
-// Parse pulls the Google Cloud Build refs from the document.
-func (c *CloudBuild) Parse(m *yaml.Node) (*RefsList, error) {
+// Parse pulls the Google Cloud Build refs from the documents.
+func (c *CloudBuild) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	if m == nil {
-		return nil, nil
+	for i, node := range nodes {
+		if err := c.parseOne(&refs, node); err != nil {
+			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+		}
 	}
 
-	if m.Kind != yaml.DocumentNode {
-		return nil, fmt.Errorf("expected document node, got %v", m.Kind)
+	return &refs, nil
+}
+
+func (c *CloudBuild) parseOne(refs *RefsList, node *yaml.Node) error {
+	if node == nil {
+		return nil
+	}
+
+	if node.Kind != yaml.DocumentNode {
+		return fmt.Errorf("expected document node, got %v", node.Kind)
 	}
 
 	// Top-level object map
-	for _, docMap := range m.Content {
+	for _, docMap := range node.Content {
 		if docMap.Kind != yaml.MappingNode {
 			continue
 		}
@@ -59,5 +68,5 @@ func (c *CloudBuild) Parse(m *yaml.Node) (*RefsList, error) {
 		}
 	}
 
-	return &refs, nil
+	return nil
 }

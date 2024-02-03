@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/braydonk/yaml"
 )
 
 func TestGitLabCI_Parse(t *testing.T) {
@@ -104,7 +106,7 @@ job2:
 
 			m := helperStringToYAML(t, tc.in)
 
-			refs, err := new(GitLabCI).Parse(m)
+			refs, err := new(GitLabCI).Parse([]*yaml.Node{m})
 			if err != nil {
 				fmt.Println(refs)
 				t.Fatal(err)

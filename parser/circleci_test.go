@@ -3,6 +3,8 @@ package parser
 import (
 	"reflect"
 	"testing"
+
+	"github.com/braydonk/yaml"
 )
 
 func TestCircleCI_Parse(t *testing.T) {
@@ -56,7 +58,7 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			refs, err := new(CircleCI).Parse(m)
+			refs, err := new(CircleCI).Parse([]*yaml.Node{m})
 			if err != nil {
 				t.Fatal(err)
 			}

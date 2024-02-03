@@ -3,6 +3,8 @@ package parser
 import (
 	"reflect"
 	"testing"
+
+	"github.com/braydonk/yaml"
 )
 
 func TestDrone_Parse(t *testing.T) {
@@ -26,7 +28,7 @@ jobs:
 steps:
   - name: git
     image: alpine/git
-  
+
   - name: test
     image: mysql
 `,
@@ -45,7 +47,7 @@ steps:
 
 			m := helperStringToYAML(t, tc.in)
 
-			refs, err := new(Drone).Parse(m)
+			refs, err := new(Drone).Parse([]*yaml.Node{m})
 			if err != nil {
 				t.Fatal(err)
 			}

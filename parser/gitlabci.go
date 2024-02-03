@@ -6,7 +6,6 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-
 	"github.com/sethvargo/ratchet/resolver"
 )
 
@@ -14,8 +13,19 @@ type GitLabCI struct{}
 
 // Parse pulls the image references from GitLab CI configuration files. It does
 // not support references with variables.
-func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
+func (c *GitLabCI) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList
+
+	for i, node := range nodes {
+		if err := c.parseOne(&refs, node); err != nil {
+			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+		}
+	}
+
+	return &refs, nil
+}
+
+func (c *GitLabCI) parseOne(refs *RefsList, m *yaml.Node) error {
 	var imageRef *yaml.Node
 
 	// GitLab CI global top level keywords
@@ -28,11 +38,11 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 	}
 
 	if m == nil {
-		return nil, nil
+		return nil
 	}
 
 	if m.Kind != yaml.DocumentNode {
-		return nil, fmt.Errorf("expected document node, got %v", m.Kind)
+		return fmt.Errorf("expected document node, got %v", m.Kind)
 	}
 
 	// Top-level object map
@@ -42,7 +52,6 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 		}
 		// jobs names
 		for i, keysMap := range docMap.Content {
-
 			// exclude global keywords
 			if _, hit := globalKeywords[keysMap.Value]; hit || (keysMap.Value == "") {
 				continue
@@ -55,7 +64,6 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 
 			for k, property := range job.Content {
 				if property.Value == "image" {
-
 					image := job.Content[k+1]
 
 					// match image reference with name key
@@ -77,5 +85,5 @@ func (C *GitLabCI) Parse(m *yaml.Node) (*RefsList, error) {
 		}
 	}
 
-	return &refs, nil
+	return nil
 }

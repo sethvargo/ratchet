@@ -9,7 +9,6 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-
 	"github.com/sethvargo/ratchet/resolver"
 )
 
@@ -69,7 +68,7 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Check(ctx, par, m); err != nil {
+			if err := Check(ctx, par, []*yaml.Node{m}); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {
@@ -211,7 +210,7 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Pin(ctx, res, par, m, 2); err != nil {
+			if err := Pin(ctx, res, par, []*yaml.Node{m}, 2); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {
@@ -234,6 +233,8 @@ jobs:
 
 func TestUnpin(t *testing.T) {
 	t.Parallel()
+
+	ctx := context.Background()
 
 	cases := []struct {
 		name string
@@ -283,7 +284,7 @@ func TestUnpin(t *testing.T) {
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Unpin(m); err != nil {
+			if err := Unpin(ctx, []*yaml.Node{m}); err != nil {
 				t.Fatal(err)
 			}
 

@@ -237,16 +237,5 @@ only applies to the line on which it appears.
           - uses: 'actions/checkout@v${{ matrix.version }}'
     ```
 
-## Experiments
-
-Use these options to configure the default behavior of Ratchet.
-
-### Experiment: Keep Newlines
-
-Experimental functionality to enable keeping newlines in the output. This only
-applies to cli commands that modify output. As of v0.5.0, this functionality is
-enabled by default. To disable it, set the environment variable
-`RATCHET_EXP_KEEP_NEWLINES=false`.
-
 [containers]: https://github.com/sethvargo/ratchet/pkgs/container/ratchet
 [releases]: https://github.com/sethvargo/ratchet/releases

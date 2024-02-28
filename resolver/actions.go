@@ -73,6 +73,31 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	return fmt.Sprintf("%s@%s", name, sha), nil
 }
 
+func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
+	githubRef, err := ParseActionRef(value)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse github ref: %w", err)
+	}
+	owner := githubRef.owner
+	repo := githubRef.repo
+	path := githubRef.path
+
+	release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
+	if err != nil {
+		return "", fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	name := owner + "/" + repo
+	if path != "" {
+		name = name + "/" + path
+	}
+	refPrecision := strings.Count(githubRef.ref, ".")
+	versionParts := strings.Split(*release.TagName, ".")
+	samePrecision := strings.Join(versionParts[:refPrecision+1], ".")
+
+	return fmt.Sprintf("%s@%s", name, samePrecision), nil
+}
+
 func ParseActionRef(s string) (*GitHubRef, error) {
 	parts := strings.SplitN(s, "/", 2)
 	if len(parts) < 2 {

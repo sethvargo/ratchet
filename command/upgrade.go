@@ -13,45 +13,45 @@ import (
 	"github.com/sethvargo/ratchet/resolver"
 )
 
-const updateCommandDesc = `Update all pinned versions to the latest value`
+const upgradeCommandDesc = `Upgrade all pinned versions to the latest version`
 
-const updateCommandHelp = `
-Usage: ratchet update [FILE...]
+const upgradeCommandHelp = `
+Usage: ratchet upgrade [FILE...]
 
-The "update" command unpins any pinned versions, resolves the unpinned version
-constraint to the latest available value, and then re-pins the versions.
+The "upgrade" command unpins any pinned versions, upgrades the unpinned version
+constraint to the latest available value, and then re-pins the versions with the
+new version constraint.
 
-This command will pin to the latest available version that satisfies the original
-constraint. To upgrade to versions beyond the constraint (e.g. v2 -> v3), you
-should use the 'upgrade' command.
+This command will upgrade pinned versions to versions beyond the constraint
+(e.g. v2 -> v3).
 
 EXAMPLES
 
-    ratchet update ./path/to/file.yaml
+    ratchet upgrade ./path/to/file.yaml
 
 FLAGS
 
 `
 
-type UpdateCommand struct {
+type UpgradeCommand struct {
 	PinCommand
 }
 
-func (c *UpdateCommand) Desc() string {
-	return updateCommandDesc
+func (c *UpgradeCommand) Desc() string {
+	return upgradeCommandDesc
 }
 
-func (c *UpdateCommand) Flags() *flag.FlagSet {
+func (c *UpgradeCommand) Flags() *flag.FlagSet {
 	f := c.PinCommand.Flags()
 	f.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(updateCommandHelp))
+		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(upgradeCommandDesc))
 		f.PrintDefaults()
 	}
 
 	return f
 }
 
-func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
+func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 	args, err := parseFlags(c.Flags(), originalArgs)
 	if err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
@@ -82,7 +82,7 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency, false); err != nil {
+	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency, true); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
@@ -95,12 +95,12 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 			outFile = f.path
 		}
 
-		updated, err := marshalYAML(f.node)
+		upgraded, err := marshalYAML(f.node)
 		if err != nil {
 			return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
 		}
 
-		final := removeNewLineChanges(string(f.contents), string(updated))
+		final := removeNewLineChanges(string(f.contents), string(upgraded))
 		if err := atomic.Write(f.path, outFile, strings.NewReader(final)); err != nil {
 			return fmt.Errorf("failed to save file %s: %w", outFile, err)
 		}

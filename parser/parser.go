@@ -99,7 +99,7 @@ func Check(ctx context.Context, parser Parser, nodes []*yaml.Node) error {
 
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
-func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64) error {
+func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64, upgrade bool) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
@@ -122,6 +122,10 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yam
 	for ref, nodes := range refs {
 		ref := ref
 		nodes := nodes
+
+		if upgrade {
+			fmt.Println("Ref", ref)
+		}
 
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to acquire semaphore: %w", err)
@@ -149,17 +153,27 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yam
 				return
 			}
 
-			resolved, err := res.Resolve(ctx, ref)
+			newRef := ref
+			if upgrade {
+				if newRef, err = res.Upgrade(ctx, newRef); err != nil {
+					merrLock.Lock()
+					merr = errors.Join(merr, fmt.Errorf("failed to upgrade %q: %w", ref, err))
+					merrLock.Unlock()
+				}
+			}
+
+			resolved, err := res.Resolve(ctx, newRef)
 			if err != nil {
 				merrLock.Lock()
-				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
+				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", newRef, err))
 				merrLock.Unlock()
 			}
 
 			denormRef := resolver.DenormalizeRef(ref)
+			denormRefNew := resolver.DenormalizeRef(newRef)
 
 			for _, node := range nodes {
-				node.LineComment = appendOriginalToComment(node.LineComment, node.Value)
+				node.LineComment = appendOriginalToComment(node.LineComment, denormRefNew)
 				node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
 			}
 		}()

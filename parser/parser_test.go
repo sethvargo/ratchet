@@ -92,14 +92,27 @@ func TestPin(t *testing.T) {
 		"actions://good/repo@v0": {
 			Resolved: "good/repo@a12a3943",
 		},
+		"actions://good/repo@v1": {
+			Resolved: "good/repo@b12a3943",
+		},
 		"actions://good/repo/sub/path@v0": {
 			Resolved: "good/repo/sub/path@a12a3943",
+		},
+		"actions://good/repo/sub/path@v2": {
+			Resolved: "good/repo/sub/path@b12a3943",
 		},
 		"actions://good/repo@2541b1294d2704b0964813337f33b291d3f8596b": {
 			Resolved: "good/repo@2541b1294d2704b0964813337f33b291d3f8596b",
 		},
 		"container://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724": {
 			Resolved: "ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724",
+		},
+	}, map[string]*resolver.TestResult{
+		"actions://good/repo@v0": {
+			Resolved: "actions://good/repo@v1",
+		},
+		"actions://good/repo/sub/path@v0": {
+			Resolved: "actions://good/repo/sub/path@v2",
 		},
 	})
 	if err != nil {
@@ -109,13 +122,15 @@ func TestPin(t *testing.T) {
 	par := new(Actions)
 
 	cases := []struct {
-		name string
-		in   string
-		exp  string
-		err  string
+		name    string
+		upgrade bool
+		in      string
+		exp     string
+		err     string
 	}{
 		{
-			name: "no_uses",
+			name:    "no_uses",
+			upgrade: false,
 			in: `
 foo: 'bar'
 `,
@@ -124,7 +139,8 @@ foo: 'bar'
 `,
 		},
 		{
-			name: "good_uses",
+			name:    "good_uses",
+			upgrade: false,
 			in: `
 jobs:
   my_job:
@@ -139,7 +155,8 @@ jobs:
 `,
 		},
 		{
-			name: "uses_subpath",
+			name:    "uses_subpath",
+			upgrade: false,
 			in: `
 jobs:
   my_job:
@@ -154,7 +171,8 @@ jobs:
 `,
 		},
 		{
-			name: "existing_comment",
+			name:    "existing_comment",
+			upgrade: false,
 			in: `
 jobs:
   my_job:
@@ -169,7 +187,8 @@ jobs:
 `,
 		},
 		{
-			name: "already_pinned",
+			name:    "already_pinned",
+			upgrade: false,
 			in: `
 jobs:
   my_job:
@@ -186,7 +205,8 @@ jobs:
 `,
 		},
 		{
-			name: "exclude",
+			name:    "exclude",
+			upgrade: false,
 			in: `
 jobs:
   my_job:
@@ -200,6 +220,24 @@ jobs:
       - uses: 'should_not/resolve@v0' # ratchet:exclude
 `,
 		},
+		{
+			name:    "upgrade_pinned",
+			upgrade: true,
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0'
+      - uses: 'docker://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:docker://ubuntu:20.04
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@b12a3943' # ratchet:good/repo@v1
+      - uses: 'docker://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:docker://ubuntu:20.04
+`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -210,7 +248,7 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Pin(ctx, res, par, []*yaml.Node{m}, 2); err != nil {
+			if err := Pin(ctx, res, par, []*yaml.Node{m}, 2, tc.upgrade); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {

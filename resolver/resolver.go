@@ -17,6 +17,10 @@ type Resolver interface {
 	// an error. If the provided context is canceled, the resolution is also
 	// canceled.
 	Resolve(context.Context, string) (string, error)
+	// Upgrade resolves the given reference to the most recent release version,
+	// returning the resolved reference or an error. If the provided context is
+	// canceled, the resolution is also canceled.
+	Upgrade(context.Context, string) (string, error)
 }
 
 // DefaultResolver is the default resolver.
@@ -50,6 +54,24 @@ func (r *DefaultResolver) Resolve(ctx context.Context, ref string) (string, erro
 		return r.actions.Resolve(ctx, strings.TrimPrefix(ref, ActionsProtocol))
 	case strings.HasPrefix(ref, ContainerProtocol):
 		return r.container.Resolve(ctx, strings.TrimPrefix(ref, ContainerProtocol))
+	default:
+		return "", fmt.Errorf("missing resolver protocol")
+	}
+}
+
+// Upgrade upgrades the ref.
+func (r *DefaultResolver) Upgrade(ctx context.Context, ref string) (string, error) {
+	switch {
+	case strings.HasPrefix(ref, ActionsProtocol):
+		res, err := r.actions.Upgrade(ctx, strings.TrimPrefix(ref, ActionsProtocol))
+		if err != nil {
+			return "", fmt.Errorf("failed to upgrade ref: %w", err)
+		}
+		fmt.Println("YO", ActionsProtocol+res)
+		return ActionsProtocol + res, nil
+	case strings.HasPrefix(ref, ContainerProtocol):
+		// TODO: Figure out a strategy for container upgrades.
+		return ref, nil
 	default:
 		return "", fmt.Errorf("missing resolver protocol")
 	}

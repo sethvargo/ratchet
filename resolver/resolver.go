@@ -67,8 +67,7 @@ func (r *DefaultResolver) Upgrade(ctx context.Context, ref string) (string, erro
 		if err != nil {
 			return "", fmt.Errorf("failed to upgrade ref: %w", err)
 		}
-		fmt.Println("YO", ActionsProtocol+res)
-		return ActionsProtocol + res, nil
+		return NormalizeActionsRef(res), nil
 	case strings.HasPrefix(ref, ContainerProtocol):
 		// TODO: Figure out a strategy for container upgrades.
 		return ref, nil

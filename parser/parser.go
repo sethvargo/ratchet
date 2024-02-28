@@ -123,10 +123,6 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yam
 		ref := ref
 		nodes := nodes
 
-		if upgrade {
-			fmt.Println("Ref", ref)
-		}
-
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to acquire semaphore: %w", err)
 		}

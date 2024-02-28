@@ -81,6 +81,12 @@ func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
 	owner := githubRef.owner
 	repo := githubRef.repo
 	path := githubRef.path
+	ref := githubRef.ref
+
+	// Do not upgrade main branch refs.
+	if ref == "main" || ref == "master" {
+		return value, nil
+	}
 
 	release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
 	if err != nil {
@@ -91,11 +97,14 @@ func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
 	if path != "" {
 		name = name + "/" + path
 	}
-	refPrecision := strings.Count(githubRef.ref, ".")
-	versionParts := strings.Split(*release.TagName, ".")
-	samePrecision := strings.Join(versionParts[:refPrecision+1], ".")
+	version := *release.TagName
+	if strings.HasPrefix(ref, "v") {
+		refPrecision := strings.Count(githubRef.ref, ".")
+		versionParts := strings.Split(*release.TagName, ".")
+		version = strings.Join(versionParts[:refPrecision+1], ".")
+	}
 
-	return fmt.Sprintf("%s@%s", name, samePrecision), nil
+	return fmt.Sprintf("%s@%s", name, version), nil
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {

@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -52,6 +53,60 @@ func TestResolve(t *testing.T) {
 
 			if !match {
 				t.Errorf("expected %q to match %q", result, tc.exp)
+			}
+		})
+	}
+}
+
+func TestUpgrade(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	resolver, err := NewActions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "default",
+			in:   "actions/checkout@v3",
+			exp:  "actions/checkout@v4",
+		},
+		{
+			name: "tag-name-change",
+			in:   "github/codeql-action/init@v1",
+			exp:  "github/codeql-action/init@codeql-bundle-v2",
+		},
+		{
+			name: "tag-name-change-and-minor-precision",
+			in:   "github/codeql-action/init@v1.0",
+			exp:  "github/codeql-action/init@codeql-bundle-v2.16",
+		},
+		{
+			name: "tag-name-change-and-patch-precision",
+			in:   "github/codeql-action/init@v1.0.1",
+			exp:  "github/codeql-action/init@codeql-bundle-v2.16.3",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := resolver.Upgrade(ctx, tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if result != tc.exp {
+				t.Fatal(fmt.Errorf("upgrade failed - expected %s to match %s", result, tc.exp))
 			}
 		})
 	}

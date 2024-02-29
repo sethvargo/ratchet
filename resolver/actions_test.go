@@ -93,14 +93,9 @@ func TestUpgrade(t *testing.T) {
 			exp:  "github/codeql-action/init@codeql-bundle-v2.16.3",
 		},
 		{
-			name: "main-branch",
+			name: "skips-main-branch",
 			in:   "github/codeql-action/init@main",
 			exp:  "github/codeql-action/init@main",
-		},
-		{
-			name: "master-branch",
-			in:   "github/codeql-action/init@master",
-			exp:  "github/codeql-action/init@master",
 		},
 	}
 

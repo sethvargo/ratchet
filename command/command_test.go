@@ -358,6 +358,31 @@ func Test_loadYAMLFiles(t *testing.T) {
         uses: './local/path/to/action'
 `,
 		},
+		{
+			name:          "handles-leading-dot-slash",
+			yamlFilenames: []string{"./testdata/github.yml"},
+			want: `jobs:
+    my_job:
+        runs-on: 'ubuntu-latest'
+        container:
+            image: 'ubuntu:20.04'
+        services:
+            nginx:
+                image: 'nginx:1.21'
+        steps:
+            - uses: 'actions/checkout@v3'
+            - uses: 'docker://ubuntu:20.04'
+              with:
+                uses: '/path/to/user.png'
+                image: '/path/to/image.jpg'
+            - runs: |-
+                echo "Hello 😀"
+    other_job:
+        uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+    final_job:
+        uses: './local/path/to/action'
+`,
+		},
 	}
 
 	for _, tc := range cases {

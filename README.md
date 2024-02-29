@@ -116,8 +116,27 @@ The `update` command updates all versions to the latest matching constraint:
 ./ratchet update -parser cloudbuild cloudbuild.yml
 
 # output to a different path
-./ratchet pin -out workflow-compiled.yml workflow.yml
+./ratchet update -out workflow-compiled.yml workflow.yml
 ```
+
+#### Upgrade
+
+> [!NOTE]
+> Does not currently support upgrading image references.
+
+The `upgrade` command upgrades all versions to the latest version, changing the
+ratchet comment and also updating the ref.
+
+```shell
+# upgrade the input file
+./ratchet upgrade workflow.yml
+
+# output to a different path
+./ratchet upgrade -out workflow-compiled.yml workflow.yml
+```
+
+> [!NOTE]
+> Performs an `update` if the constraint ref is for a branch.
 
 #### Check
 

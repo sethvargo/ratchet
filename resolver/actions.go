@@ -82,9 +82,19 @@ func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
 	repo := githubRef.repo
 	path := githubRef.path
 	ref := githubRef.ref
+	branchRef := "heads/" + ref
 
-	// Do not upgrade main branch refs.
-	if ref == "main" || ref == "master" {
+	// Fetching the Git Ref allows us to determine if the ref is for a branch
+	// or tag. We must explicitly format for either `tags/` or `heads/`
+	// (branches). We arbitrarily check if the ref is for a branch, therefore
+	// we expect 404s for Tag references.
+	fullRef, resp, err := g.client.Git.GetRef(ctx, owner, repo, branchRef)
+	if err != nil && resp.StatusCode != http.StatusNotFound {
+		return "", fmt.Errorf("failed to fetch ref %s: %w", ref, err)
+	}
+
+	// Do not upgrade branch refs.
+	if fullRef != nil {
 		return value, nil
 	}
 

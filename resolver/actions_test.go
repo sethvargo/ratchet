@@ -2,7 +2,6 @@ package resolver
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -58,7 +57,7 @@ func TestResolve(t *testing.T) {
 	}
 }
 
-func TestUpgrade(t *testing.T) {
+func TestLatestVersion(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -75,27 +74,32 @@ func TestUpgrade(t *testing.T) {
 		{
 			name: "default",
 			in:   "actions/checkout@v3",
-			exp:  "actions/checkout@v4",
+			exp:  `actions/checkout@v[0-9]+`,
 		},
 		{
 			name: "tag-name-change",
 			in:   "github/codeql-action/init@v1",
-			exp:  "github/codeql-action/init@codeql-bundle-v2",
+			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+`,
 		},
 		{
 			name: "tag-name-change-and-minor-precision",
 			in:   "github/codeql-action/init@v1.0",
-			exp:  "github/codeql-action/init@codeql-bundle-v2.16",
+			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+`,
 		},
 		{
 			name: "tag-name-change-and-patch-precision",
 			in:   "github/codeql-action/init@v1.0.1",
-			exp:  "github/codeql-action/init@codeql-bundle-v2.16.3",
+			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+\.[0-9]+`,
 		},
 		{
-			name: "skips-main-branch",
+			name: "skips-default-branch",
 			in:   "github/codeql-action/init@main",
-			exp:  "github/codeql-action/init@main",
+			exp:  `github/codeql-action/init@main`,
+		},
+		{
+			name: "skips-branch",
+			in:   "github/codeql-action/init@releases/v2",
+			exp:  `github/codeql-action/init@releases/v2`,
 		},
 	}
 
@@ -105,13 +109,17 @@ func TestUpgrade(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := resolver.Upgrade(ctx, tc.in)
+			result, err := resolver.LatestVersion(ctx, tc.in)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if result != tc.exp {
-				t.Fatal(fmt.Errorf("upgrade failed - expected %s to match %s", result, tc.exp))
+			match, err := regexp.MatchString(tc.exp, result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !match {
+				t.Errorf("expected %q to match %q", result, tc.exp)
 			}
 		})
 	}

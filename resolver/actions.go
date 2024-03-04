@@ -73,7 +73,7 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	return fmt.Sprintf("%s@%s", name, sha), nil
 }
 
-func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
+func (g *Actions) LatestVersion(ctx context.Context, value string) (string, error) {
 	githubRef, err := ParseActionRef(value)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse github ref: %w", err)
@@ -89,7 +89,7 @@ func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
 	// (branches). We arbitrarily check if the ref is for a branch, therefore
 	// we expect 404s for Tag references.
 	fullRef, resp, err := g.client.Git.GetRef(ctx, owner, repo, branchRef)
-	if err != nil && resp.StatusCode != http.StatusNotFound {
+	if err != nil && (resp == nil || resp.StatusCode != http.StatusNotFound) {
 		return "", fmt.Errorf("failed to fetch ref %s: %w", ref, err)
 	}
 
@@ -114,7 +114,8 @@ func (g *Actions) Upgrade(ctx context.Context, value string) (string, error) {
 		version = strings.Join(versionParts[:refPrecision+1], ".")
 	}
 
-	return fmt.Sprintf("%s@%s", name, version), nil
+	result := fmt.Sprintf("%s@%s", name, version)
+	return result, nil
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {

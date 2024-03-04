@@ -107,14 +107,7 @@ func TestPin(t *testing.T) {
 		"container://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724": {
 			Resolved: "ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724",
 		},
-	}, map[string]*resolver.TestResult{
-		"actions://good/repo@v0": {
-			Resolved: "actions://good/repo@v1",
-		},
-		"actions://good/repo/sub/path@v0": {
-			Resolved: "actions://good/repo/sub/path@v2",
-		},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,15 +115,13 @@ func TestPin(t *testing.T) {
 	par := new(Actions)
 
 	cases := []struct {
-		name    string
-		upgrade bool
-		in      string
-		exp     string
-		err     string
+		name string
+		in   string
+		exp  string
+		err  string
 	}{
 		{
-			name:    "no_uses",
-			upgrade: false,
+			name: "no_uses",
 			in: `
 foo: 'bar'
 `,
@@ -139,8 +130,7 @@ foo: 'bar'
 `,
 		},
 		{
-			name:    "good_uses",
-			upgrade: false,
+			name: "good_uses",
 			in: `
 jobs:
   my_job:
@@ -155,8 +145,7 @@ jobs:
 `,
 		},
 		{
-			name:    "uses_subpath",
-			upgrade: false,
+			name: "uses_subpath",
 			in: `
 jobs:
   my_job:
@@ -171,8 +160,7 @@ jobs:
 `,
 		},
 		{
-			name:    "existing_comment",
-			upgrade: false,
+			name: "existing_comment",
 			in: `
 jobs:
   my_job:
@@ -187,8 +175,7 @@ jobs:
 `,
 		},
 		{
-			name:    "already_pinned",
-			upgrade: false,
+			name: "already_pinned",
 			in: `
 jobs:
   my_job:
@@ -205,8 +192,7 @@ jobs:
 `,
 		},
 		{
-			name:    "exclude",
-			upgrade: false,
+			name: "exclude",
 			in: `
 jobs:
   my_job:
@@ -218,24 +204,6 @@ jobs:
   my_job:
     steps:
       - uses: 'should_not/resolve@v0' # ratchet:exclude
-`,
-		},
-		{
-			name:    "upgrade_pinned",
-			upgrade: true,
-			in: `
-jobs:
-  my_job:
-    steps:
-      - uses: 'good/repo@v0'
-      - uses: 'docker://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:docker://ubuntu:20.04
-`,
-			exp: `
-jobs:
-  my_job:
-    steps:
-      - uses: 'good/repo@b12a3943' # ratchet:good/repo@v1
-      - uses: 'docker://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:docker://ubuntu:20.04
 `,
 		},
 	}
@@ -248,7 +216,170 @@ jobs:
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Pin(ctx, res, par, []*yaml.Node{m}, 2, tc.upgrade); err != nil {
+			if err := Pin(ctx, res, par, []*yaml.Node{m}, 2); err != nil {
+				if tc.err == "" {
+					t.Fatal(err)
+				} else {
+					if got, want := err.Error(), tc.err; !strings.Contains(got, want) {
+						t.Errorf("expected %q to contain %q", got, want)
+					}
+				}
+			} else if tc.err != "" {
+				t.Fatal("expected error, got nothing")
+			}
+
+			if tc.err == "" {
+				if got, want := helperYAMLToString(t, m), strings.TrimSpace(tc.exp); got != want {
+					t.Errorf("expected \n\n%s\n\nto be\n\n%s\n\n", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestUpgrade(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	res, err := resolver.NewTest(nil,
+		map[string]*resolver.TestResult{
+			"actions://good/repo@v0": {
+				Resolved: "actions://good/repo@v2.1.0",
+			},
+			"actions://good/repo@v2.1.0": {
+				Resolved: "actions://good/repo@v2.1.0",
+			},
+			"actions://good/repo@a12a3943": {
+				Resolved: "actions://good/repo@v2.1.0",
+			},
+			"actions://good/repo/sub/path@a12a3943": {
+				Resolved: "actions://good/repo/sub/path@v2.1.0",
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	par := new(Actions)
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+		err  string
+	}{
+		{
+			name: "no_uses",
+			in: `
+foo: 'bar'
+`,
+			exp: `
+foo: 'bar'
+`,
+		},
+		{
+			name: "unpinned_old",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.1.0' # ratchet:good/repo@v2.1.0
+`,
+		},
+		{
+			name: "unpinned_latest",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.1.0'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.1.0' # ratchet:good/repo@v2.1.0
+`,
+		},
+		{
+			name: "pinned",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@a12a3943'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.1.0' # ratchet:good/repo@v2.1.0
+`,
+		},
+		{
+			name: "subpath",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo/sub/path@a12a3943'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo/sub/path@v2.1.0' # ratchet:good/repo/sub/path@v2.1.0
+`,
+		},
+		{
+			name: "existing_comment",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0' # this is a comment
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.1.0' # this is a comment ratchet:good/repo@v2.1.0
+		`,
+		},
+		{
+			name: "exclude",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0' # ratchet:exclude # this is a comment
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v0' # ratchet:exclude # this is a comment
+		`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := helperStringToYAML(t, tc.in)
+
+			if err := Upgrade(ctx, res, par, []*yaml.Node{m}, 2); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {

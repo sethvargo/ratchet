@@ -17,10 +17,11 @@ type Resolver interface {
 	// an error. If the provided context is canceled, the resolution is also
 	// canceled.
 	Resolve(context.Context, string) (string, error)
-	// Upgrade resolves the given reference to the most recent release version,
+
+	// LatestVersion resolves the given reference to the most recent release version,
 	// returning the resolved reference or an error. If the provided context is
 	// canceled, the resolution is also canceled.
-	Upgrade(context.Context, string) (string, error)
+	LatestVersion(context.Context, string) (string, error)
 }
 
 // DefaultResolver is the default resolver.
@@ -59,11 +60,11 @@ func (r *DefaultResolver) Resolve(ctx context.Context, ref string) (string, erro
 	}
 }
 
-// Upgrade upgrades the ref.
-func (r *DefaultResolver) Upgrade(ctx context.Context, ref string) (string, error) {
+// LatestVersion upgrades the ref.
+func (r *DefaultResolver) LatestVersion(ctx context.Context, ref string) (string, error) {
 	switch {
 	case strings.HasPrefix(ref, ActionsProtocol):
-		res, err := r.actions.Upgrade(ctx, strings.TrimPrefix(ref, ActionsProtocol))
+		res, err := r.actions.LatestVersion(ctx, strings.TrimPrefix(ref, ActionsProtocol))
 		if err != nil {
 			return "", fmt.Errorf("failed to upgrade ref: %w", err)
 		}

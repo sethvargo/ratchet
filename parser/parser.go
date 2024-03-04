@@ -99,20 +99,83 @@ func Check(ctx context.Context, parser Parser, nodes []*yaml.Node) error {
 
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
-func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64, upgrade bool) error {
+func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
 	}
 	refs := refsList.All()
 
-	// Remove any absolute references from the list. We do not want to pin
-	// absolute references since they are already pinned.
-	for ref := range refs {
+	sem := semaphore.NewWeighted(concurrency)
+
+	var merrLock sync.Mutex
+	var merr error
+
+	for ref, nodes := range refs {
+		ref := ref
+		nodes := nodes
+
+		// Remove any absolute references from the list. We do not want to pin
+		// absolute references since they are already pinned.
 		if isAbsolute(ref) {
-			delete(refs, ref)
+			continue
 		}
+
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return fmt.Errorf("failed to acquire semaphore: %w", err)
+		}
+
+		go func() {
+			defer sem.Release(1)
+
+			// Pre-filter any nodes that should be excluded from the lookup. It's
+			// important we do this before doing any lookups because, if the node list
+			// is empty, we don't want to make any API calls.
+			//
+			// It would actually be better to do this in the actual parser, but that
+			// would not scale to all the parsers (and would be difficult to debug).
+			tmp := nodes[:0]
+			for _, node := range nodes {
+				if !shouldExclude(node.LineComment) {
+					tmp = append(tmp, node)
+				}
+			}
+			nodes = tmp
+
+			// If there's no nodes left that are eligible, skip this reference.
+			if len(nodes) == 0 {
+				return
+			}
+
+			resolved, err := res.Resolve(ctx, ref)
+			if err != nil {
+				merrLock.Lock()
+				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
+				merrLock.Unlock()
+			}
+
+			denormRef := resolver.DenormalizeRef(ref)
+
+			for _, node := range nodes {
+				node.LineComment = appendOriginalToComment(node.LineComment, node.Value)
+				node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
+			}
+		}()
 	}
+
+	if err := sem.Acquire(ctx, concurrency); err != nil {
+		return fmt.Errorf("failed to wait for semaphore: %w", err)
+	}
+
+	return merr
+}
+
+func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64) error {
+	refsList, err := parser.Parse(nodes)
+	if err != nil {
+		return err
+	}
+	refs := refsList.All()
 
 	sem := semaphore.NewWeighted(concurrency)
 
@@ -149,28 +212,18 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yam
 				return
 			}
 
-			newRef := ref
-			if upgrade {
-				if newRef, err = res.Upgrade(ctx, newRef); err != nil {
-					merrLock.Lock()
-					merr = errors.Join(merr, fmt.Errorf("failed to upgrade %q: %w", ref, err))
-					merrLock.Unlock()
-				}
-			}
-
-			resolved, err := res.Resolve(ctx, newRef)
+			latest, err := res.LatestVersion(ctx, ref)
 			if err != nil {
 				merrLock.Lock()
-				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", newRef, err))
+				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
 				merrLock.Unlock()
 			}
 
-			denormRef := resolver.DenormalizeRef(ref)
-			denormRefNew := resolver.DenormalizeRef(newRef)
+			denormLatest := resolver.DenormalizeRef(latest)
 
 			for _, node := range nodes {
-				node.LineComment = appendOriginalToComment(node.LineComment, denormRefNew)
-				node.Value = strings.Replace(node.Value, denormRef, resolved, 1)
+				node.LineComment = appendOriginalToComment(node.LineComment, denormLatest)
+				node.Value = denormLatest
 			}
 		}()
 	}

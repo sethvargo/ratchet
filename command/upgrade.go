@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sethvargo/ratchet/internal/atomic"
+	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
 	"github.com/sethvargo/ratchet/resolver"
 )
@@ -16,7 +17,7 @@ import (
 const upgradeCommandDesc = `Upgrade all pinned versions to the latest version`
 
 const upgradeCommandHelp = `
-Usage: ratchet upgrade [FILE...]
+Usage: ratchet f [FILE...]
 
 The "upgrade" command unpins any pinned versions, upgrades the unpinned version
 constraint to the latest available value, and then re-pins the versions with the
@@ -34,7 +35,9 @@ FLAGS
 `
 
 type UpgradeCommand struct {
-	PinCommand
+	flagConcurrency int64
+	flagParser      string
+	flagOut         string
 }
 
 func (c *UpgradeCommand) Desc() string {
@@ -42,11 +45,16 @@ func (c *UpgradeCommand) Desc() string {
 }
 
 func (c *UpgradeCommand) Flags() *flag.FlagSet {
-	f := c.PinCommand.Flags()
+	f := flag.NewFlagSet("", flag.ExitOnError)
 	f.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(upgradeCommandDesc))
+		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(upgradeCommandHelp))
 		f.PrintDefaults()
 	}
+
+	f.Int64Var(&c.flagConcurrency, "concurrency", concurrency.DefaultConcurrency(1),
+		"maximum number of concurrent resolutions")
+	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
+	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 
 	return f
 }
@@ -75,15 +83,19 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 	}
 
 	if len(files) > 1 && c.flagOut != "" && !strings.HasSuffix(c.flagOut, "/") {
-		return fmt.Errorf("-out must be a directory when pinning multiple files")
+		return fmt.Errorf("-out must be a directory when upgrading multiple files")
 	}
 
 	if err := parser.Unpin(ctx, files.nodes()); err != nil {
-		return fmt.Errorf("failed to pin refs: %w", err)
+		return fmt.Errorf("failed to unpin refs: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency, true); err != nil {
-		return fmt.Errorf("failed to pin refs: %w", err)
+	if err := parser.Upgrade(ctx, res, par, files.nodes(), c.flagConcurrency); err != nil {
+		return fmt.Errorf("failed to upgrade refs: %w", err)
+	}
+
+	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency); err != nil {
+		return fmt.Errorf("failed to pin upgraded refs: %w", err)
 	}
 
 	for _, f := range files {

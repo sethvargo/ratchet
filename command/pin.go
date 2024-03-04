@@ -89,7 +89,7 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("-out must be a directory when pinning multiple files")
 	}
 
-	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency, false); err != nil {
+	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 

@@ -57,6 +57,74 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+func TestLatestVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	resolver, err := NewActions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "default",
+			in:   "actions/checkout@v3",
+			exp:  `actions/checkout@v[0-9]+`,
+		},
+		{
+			name: "tag-name-change",
+			in:   "github/codeql-action/init@v1",
+			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+`,
+		},
+		{
+			name: "tag-name-change-and-minor-precision",
+			in:   "github/codeql-action/init@v1.0",
+			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+`,
+		},
+		{
+			name: "tag-name-change-and-patch-precision",
+			in:   "github/codeql-action/init@v1.0.1",
+			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+\.[0-9]+`,
+		},
+		{
+			name: "skips-default-branch",
+			in:   "github/codeql-action/init@main",
+			exp:  `github/codeql-action/init@main`,
+		},
+		{
+			name: "skips-branch",
+			in:   "github/codeql-action/init@releases/v2",
+			exp:  `github/codeql-action/init@releases/v2`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := resolver.LatestVersion(ctx, tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			match, err := regexp.MatchString(tc.exp, result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !match {
+				t.Errorf("expected %q to match %q", result, tc.exp)
+			}
+		})
+	}
+}
+
 func TestParseRef(t *testing.T) {
 	t.Parallel()
 

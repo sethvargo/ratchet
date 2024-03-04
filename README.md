@@ -71,22 +71,22 @@ The `pin` command pins to specific versions:
 
 ```shell
 # pin the input file
-./ratchet pin workflow.yml
+ratchet pin workflow.yml
 
 # pin a circleci file
-./ratchet pin -parser circleci circleci.yml
+ratchet pin -parser circleci circleci.yml
 
 # pin a cloudbuild file
-./ratchet pin -parser cloudbuild cloudbuild.yml
+ratchet pin -parser cloudbuild cloudbuild.yml
 
 # pin a drone file
-./ratchet pin -parser drone drone.yml
+ratchet pin -parser drone drone.yml
 
 # pin a gitlab file
-./ratchet pin -parser gitlabci gitlabci.yml
+ratchet pin -parser gitlabci gitlabci.yml
 
 # output to a different path
-./ratchet pin -out workflow-compiled.yml workflow.yml
+ratchet pin -out workflow-compiled.yml workflow.yml
 ```
 
 #### Unpin
@@ -95,10 +95,10 @@ The `unpin` command unpins any pinned versions:
 
 ```shell
 # unpin the input file
-./ratchet unpin workflow.yml
+ratchet unpin workflow.yml
 
 # output to a different path
-./ratchet unpin -out workflow.yml workflow-compiled.yml
+ratchet unpin -out workflow.yml workflow-compiled.yml
 ```
 
 #### Update
@@ -107,17 +107,37 @@ The `update` command updates all versions to the latest matching constraint:
 
 ```shell
 # update the input file
-./ratchet update workflow.yml
+ratchet update workflow.yml
 
 # update a circleci file
-./ratchet update -parser circleci circleci.yml
+ratchet update -parser circleci circleci.yml
 
 # update a cloudbuild file
-./ratchet update -parser cloudbuild cloudbuild.yml
+ratchet update -parser cloudbuild cloudbuild.yml
 
 # output to a different path
-./ratchet pin -out workflow-compiled.yml workflow.yml
+ratchet update -out workflow-compiled.yml workflow.yml
 ```
+
+#### Upgrade
+
+> [!NOTE]
+> This command only works with GitHub Actions references. It does not support
+> container or Docker-based references.
+
+The `upgrade` command upgrades all versions to the latest version, changing the
+ratchet comment and also updating the ref.
+
+```shell
+# upgrade the input file
+ratchet upgrade workflow.yml
+
+# output to a different path
+ratchet upgrade -out workflow-compiled.yml workflow.yml
+```
+
+> [!NOTE]
+> Performs an `update` if the constraint ref is for a branch.
 
 #### Check
 
@@ -125,7 +145,7 @@ The `check` command checks if all versions are pinned, exiting with a non-zero
 error code when entries are not pinned:
 
 ```shell
-./ratchet check workflow.yml
+ratchet check workflow.yml
 ```
 
 ## Examples

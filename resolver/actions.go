@@ -73,6 +73,51 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	return fmt.Sprintf("%s@%s", name, sha), nil
 }
 
+func (g *Actions) LatestVersion(ctx context.Context, value string) (string, error) {
+	githubRef, err := ParseActionRef(value)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse github ref: %w", err)
+	}
+	owner := githubRef.owner
+	repo := githubRef.repo
+	path := githubRef.path
+	ref := githubRef.ref
+	branchRef := "heads/" + ref
+
+	// Fetching the Git Ref allows us to determine if the ref is for a branch
+	// or tag. We must explicitly format for either `tags/` or `heads/`
+	// (branches). We arbitrarily check if the ref is for a branch, therefore
+	// we expect 404s for Tag references.
+	fullRef, resp, err := g.client.Git.GetRef(ctx, owner, repo, branchRef)
+	if err != nil && (resp == nil || resp.StatusCode != http.StatusNotFound) {
+		return "", fmt.Errorf("failed to fetch ref %s: %w", ref, err)
+	}
+
+	// Do not upgrade branch refs.
+	if fullRef != nil {
+		return value, nil
+	}
+
+	release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
+	if err != nil {
+		return "", fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	name := owner + "/" + repo
+	if path != "" {
+		name = name + "/" + path
+	}
+	version := *release.TagName
+	if strings.HasPrefix(ref, "v") {
+		refPrecision := strings.Count(githubRef.ref, ".")
+		versionParts := strings.Split(*release.TagName, ".")
+		version = strings.Join(versionParts[:refPrecision+1], ".")
+	}
+
+	result := fmt.Sprintf("%s@%s", name, version)
+	return result, nil
+}
+
 func ParseActionRef(s string) (*GitHubRef, error) {
 	parts := strings.SplitN(s, "/", 2)
 	if len(parts) < 2 {

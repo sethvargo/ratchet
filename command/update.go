@@ -22,8 +22,8 @@ The "update" command unpins any pinned versions, resolves the unpinned version
 constraint to the latest available value, and then re-pins the versions.
 
 This command will pin to the latest available version that satisfies the original
-constraint. To upgrade to versions beyond the contraint (e.g. v2 -> v3), you
-must manually edit the file and update the unpinned comment.
+constraint. To upgrade to versions beyond the constraint (e.g. v2 -> v3), you
+should use the 'upgrade' command.
 
 EXAMPLES
 

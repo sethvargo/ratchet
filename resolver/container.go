@@ -47,7 +47,3 @@ func (g *Container) Resolve(ctx context.Context, value string) (string, error) {
 
 	return fmt.Sprintf("%s@%s", ref.Context().Name(), resp.Digest.String()), nil
 }
-
-func (g *Container) Upgrade(ctx context.Context, value string) (string, error) {
-	return "", fmt.Errorf("container::Upgrade is unimplemented")
-}

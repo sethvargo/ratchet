@@ -30,5 +30,5 @@ require (
 	github.com/vbatts/tar-split v0.11.5 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 )

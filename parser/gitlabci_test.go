@@ -96,8 +96,48 @@ job2:
 				"container://python",
 			},
 		},
-	}
+		{
+			name: "jobs_with_services",
+			in: `
+.test:base:
+  stage: test
+  image: python
+  retry:
+    max: 1
+  variables:
+    VAR1: true
+  script:
+    - test command
 
+job:
+  extends:
+    - .test:base
+  image: node:12
+  services:
+    - postgres:14.3
+    - docker:24.0.5-dind
+    - name: selenium/standalone-firefox:latest
+      alias: firefox
+  stage: test
+  script:
+    - test command
+
+job2:
+  image: gcr.io/project/image:tag
+  stage: test
+  script:
+    - test command
+`,
+			exp: []string{
+				"container://docker:24.0.5-dind",
+				"container://gcr.io/project/image:tag",
+				"container://node:12",
+				"container://postgres:14.3",
+				"container://python",
+				"container://selenium/standalone-firefox:latest",
+			},
+		},
+	}
 	for _, tc := range cases {
 		tc := tc
 

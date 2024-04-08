@@ -80,6 +80,22 @@ func (c *GitLabCI) parseOne(refs *RefsList, m *yaml.Node) error {
 
 					ref := resolver.NormalizeContainerRef(imageRef.Value)
 					refs.Add(ref, imageRef)
+				} else if property.Value == "services" {
+					node := job.Content[k+1]
+					for _, service := range node.Content {
+						if service.Kind == yaml.MappingNode {
+							for j, nameRef := range service.Content {
+								if nameRef.Value == "name" {
+									imageRef = service.Content[j+1]
+									break
+								}
+							}
+						} else {
+							imageRef = service
+						}
+						ref := resolver.NormalizeContainerRef(imageRef.Value)
+						refs.Add(ref, imageRef)
+					}
 				}
 			}
 		}

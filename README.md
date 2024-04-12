@@ -56,6 +56,15 @@ image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a
 
 There are a few options for installing ratchet:
 
+-   Via homebrew:
+
+    ```sh
+    brew install ratchet
+    ```
+
+    Note this option is community supported and may not be the latest
+    available verson.
+
 -   As a single-static binary from the [releases page][releases].
 -   As a container image from the [container registry][containers].
 -   Compiled from source yourself. Note this option is not supported.

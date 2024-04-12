@@ -15,3 +15,6 @@ go.work
 ### Go Patch ###
 /vendor/
 /Godeps/
+
+# For when someone runs "go build" locally
+ratchet

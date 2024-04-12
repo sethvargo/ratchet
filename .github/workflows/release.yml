@@ -23,7 +23,7 @@ jobs:
         with:
           go-version: '1.21'
 
-      - uses: 'docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d' # ratchet:docker/login-action@v3
+      - uses: 'docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20' # ratchet:docker/login-action@v3
         with:
           registry: 'ghcr.io'
           username: '${{ github.actor }}'

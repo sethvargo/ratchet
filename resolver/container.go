@@ -44,6 +44,9 @@ func (g *Container) Resolve(ctx context.Context, value string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to lookup container ref: %w", err)
 	}
+	if value == ref.Name() {
+		return fmt.Sprintf("%s@%s", ref.Name(), resp.Digest.String()), nil
+	}
 
 	return fmt.Sprintf("%s@%s", ref.Context().Name(), resp.Digest.String()), nil
 }

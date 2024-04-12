@@ -32,6 +32,7 @@ var parserFactory = map[string]func() Parser{
 	"cloudbuild": func() Parser { return new(CloudBuild) },
 	"drone":      func() Parser { return new(Drone) },
 	"gitlabci":   func() Parser { return new(GitLabCI) },
+	"tekton":     func() Parser { return new(Tekton) },
 }
 
 // For returns the parser that corresponds to the given name.

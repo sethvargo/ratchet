@@ -1,0 +1,11 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: testData
+spec:
+  params:
+    - name: username
+      type: string
+  steps:
+    - name: build
+      image: golang:1.12

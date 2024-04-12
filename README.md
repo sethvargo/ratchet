@@ -11,6 +11,7 @@ Cargo, Go modules, NPM, Pip, or Yarn, but for CI/CD workflows. Ratchet supports:
 -   GitLab CI
 -   Google Cloud Build
 -   Harness Drone
+-   Tekton
 
 **⚠️ Warning!** The README corresponds to the `main` branch of ratchet's
 development, and it may contain unreleased features.
@@ -85,8 +86,12 @@ ratchet pin -parser drone drone.yml
 # pin a gitlab file
 ratchet pin -parser gitlabci gitlabci.yml
 
+# output to a tekton file
+ratchet pin -out -parser tekton tekton.yml
+
 # output to a different path
 ratchet pin -out workflow-compiled.yml workflow.yml
+```
 ```
 
 #### Unpin

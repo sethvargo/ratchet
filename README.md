@@ -177,12 +177,12 @@ jobs:
       - uses: 'actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b' # ratchet:actions/checkout@v3
 
       # Example of pinning:
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.3.1'
+      - uses: 'docker://ghcr.io/sethvargo/ratchet:latest'
         with:
           args: 'pin .github/workflows/my-workflow.yml'
 
       # Example of checking versions are pinned:
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:0.3.1'
+      - uses: 'docker://ghcr.io/sethvargo/ratchet:latest'
         with:
           args: 'check .github/workflows/my-workflow.yml'
 ```
@@ -195,14 +195,14 @@ container-based runtimes. For non-container-based runtimes, download the `ratche
 Ratchet can run directly from a container on your local system:
 
 ```shell
-docker run -it --rm -v "${PWD}:${PWD}" -w "${PWD}" ghcr.io/sethvargo/ratchet:0.3.1 COMMAND
+docker run -it --rm -v "${PWD}:${PWD}" -w "${PWD}" ghcr.io/sethvargo/ratchet:latest COMMAND
 ```
 
 Create a shell alias to make this easier:
 
 ```shell
 function ratchet {
-  docker run -it --rm -v "${PWD}:${PWD}" -w "${PWD}" ghcr.io/sethvargo/ratchet:0.3.1 "$@"
+  docker run -it --rm -v "${PWD}:${PWD}" -w "${PWD}" ghcr.io/sethvargo/ratchet:latest "$@"
 }
 ```
 
@@ -236,7 +236,7 @@ only applies to the line on which it appears.
 ## Terminology
 
 -   **Unpinned version** - An unpinned version is a non-absolute reference to a
-    floating tag or label, such as `actions/checkout@v3` or `ubuntu:20.04`.
+    floating tag or label, such as `actions/checkout@v4` or `ubuntu:22.04`.
 
 -   **Pinned version** - A pinned version is an absolute hashed reference, such
     as `actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b` or

@@ -101,7 +101,6 @@ ratchet pin -out -parser tekton tekton.yml
 # output to a different path
 ratchet pin -out workflow-compiled.yml workflow.yml
 ```
-```
 
 #### Unpin
 

@@ -148,6 +148,47 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 	return r, nil
 }
 
+// FixIndentation corrects the indentation for the given loadResult and edits it in-place.
+func FixIndentation(f *loadResult) error {
+	updated, err := marshalYAML(f.node)
+	if err != nil {
+		return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
+	}
+	beforeContent := string(f.contents)
+	afterContent := string(updated)
+	lines := strings.Split(beforeContent, "\n")
+
+	editedLines := []string{}
+	lastLineInAfter := 0
+	for _, l := range lines {
+		token := strings.TrimSpace(l)
+		if token == "" {
+			editedLines = append(editedLines, l)
+			continue
+		}
+		a := strings.Index(afterContent[lastLineInAfter:], token)
+		if a == -1 {
+			a = 0
+		}
+		after := a + lastLineInAfter
+		newline := strings.LastIndex(afterContent[lastLineInAfter:after], "\n") + lastLineInAfter
+
+		if newline == -1 {
+			newline = 0
+		} else if after != newline {
+			newline++
+		}
+
+		lineWithCorrectIndent := afterContent[newline:after] + token
+		editedLines = append(editedLines, lineWithCorrectIndent)
+
+		lastLineInAfter = after
+	}
+
+	f.contents = []byte(strings.Join(editedLines, "\n"))
+	return nil
+}
+
 func removeNewLineChanges(beforeContent, afterContent string) string {
 	lines := strings.Split(beforeContent, "\n")
 	edits := myers.ComputeEdits(span.URIFromPath("before.txt"), beforeContent, afterContent)

@@ -86,6 +86,10 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("-out must be a directory when upgrading multiple files")
 	}
 
+	for _, f := range files {
+		FixIndentation(f)
+	}
+
 	if err := parser.Unpin(ctx, files.nodes()); err != nil {
 		return fmt.Errorf("failed to unpin refs: %w", err)
 	}

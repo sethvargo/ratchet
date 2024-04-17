@@ -330,12 +330,14 @@ func Test_loadYAMLFiles(t *testing.T) {
 		name          string
 		yamlFilenames []string
 		format        bool
+		fixNewlines   bool
 		want          string
 	}{
 		{
 			name:          "yamlA_multiple_empty_lines",
 			yamlFilenames: []string{"testdata/github.yml"},
 			format:        false,
+			fixNewlines:   false,
 			want: `jobs:
   my_job:
     runs-on: 'ubuntu-latest'
@@ -365,6 +367,7 @@ func Test_loadYAMLFiles(t *testing.T) {
 			name:          "handles-leading-dot-slash",
 			yamlFilenames: []string{"./testdata/github.yml"},
 			format:        false,
+			fixNewlines:   false,
 			want: `jobs:
   my_job:
     runs-on: 'ubuntu-latest'
@@ -394,27 +397,35 @@ func Test_loadYAMLFiles(t *testing.T) {
 			name:          "yaml_steps_indent_change",
 			yamlFilenames: []string{"testdata/github.yml"},
 			format:        true,
+			fixNewlines:   true,
 			want: `jobs:
   my_job:
     runs-on: 'ubuntu-latest'
+
     container:
       image: 'ubuntu:20.04'
+
     services:
       nginx:
         image: 'nginx:1.21'
+
     steps:
       - uses: 'actions/checkout@v3'
+
       - uses: 'docker://ubuntu:20.04'
         with:
           uses: '/path/to/user.png'
           image: '/path/to/image.jpg'
+
       - runs: |-
           echo "Hello 😀"
           if [ "true" == "false" ];
             echo "NOPE"
           fi
+
   other_job:
     uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+
   final_job:
     uses: './local/path/to/action'
 `,
@@ -423,27 +434,35 @@ func Test_loadYAMLFiles(t *testing.T) {
 			name:          "yaml_all_indent_change",
 			yamlFilenames: []string{"testdata/github-crazy-indent.yml"},
 			format:        true,
+			fixNewlines:   true,
 			want: `jobs:
   my_job:
     runs-on: 'ubuntu-latest'
+
     container:
       image: 'ubuntu:20.04'
+
     services:
       nginx:
         image: 'nginx:1.21'
+
     steps:
       - uses: 'actions/checkout@v3'
+
       - uses: 'docker://ubuntu:20.04'
         with:
           uses: '/path/to/user.png'
           image: '/path/to/image.jpg'
+
       - runs: |-
           echo "Hello 😀"
           if [ "true" == "false" ];
             echo "NOPE"
           fi
+
   other_job:
     uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+
   final_job:
     uses: './local/path/to/action'
 `,
@@ -466,6 +485,9 @@ func Test_loadYAMLFiles(t *testing.T) {
 				t.Fatalf("marshalYAML() returned error: %s", err)
 			}
 			got := string(b)
+			if tc.fixNewlines {
+				got = removeNewLineChanges(string(files[0].contents), got)
+			}
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("returned diff (-want, +got):\n%s", diff)

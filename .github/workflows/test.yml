@@ -24,7 +24,5 @@ jobs:
           go-version: '1.21'
 
       - name: 'Run tests'
-        env:
-          ACTIONS_TOKEN: '${{ github.token }}'
         run: |-
           go test -count=1 -shuffle=on -timeout=10m -race ./...

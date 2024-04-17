@@ -14,7 +14,7 @@ import (
 
 var (
 	ActionsBaseURL   = os.Getenv("ACTIONS_BASE_URL")
-	ActionsToken     = os.Getenv("ACTIONS_TOKEN")
+	ActionsToken     = coalesce(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
 )
 
@@ -152,4 +152,13 @@ type GitHubRef struct {
 	repo  string
 	path  string
 	ref   string
+}
+
+func coalesce(s ...string) string {
+	for _, v := range s {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

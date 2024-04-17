@@ -1,12 +1,10 @@
 package command
 
 import (
-	"bytes"
 	"os"
 	"reflect"
 	"testing"
 
-	"github.com/braydonk/yaml"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -411,12 +409,10 @@ func Test_FixIndentation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			files, err := loadYAMLFiles(os.DirFS(".."), tc.yamlFilenames)
+			files, err := loadYAMLFiles(os.DirFS(".."), tc.yamlFilenames, true)
 			if err != nil {
 				t.Fatalf("loadYAMLFiles() returned error: %s", err)
 			}
-
-			FixIndentation(files[0])
 
 			updated, err := marshalYAML(files[0].node)
 			if err != nil {
@@ -438,62 +434,123 @@ func Test_loadYAMLFiles(t *testing.T) {
 	cases := []struct {
 		name          string
 		yamlFilenames []string
+		format        bool
 		want          string
 	}{
 		{
 			name:          "yamlA_multiple_empty_lines",
 			yamlFilenames: []string{"testdata/github.yml"},
+			format:        false,
 			want: `jobs:
-    my_job:
-        runs-on: 'ubuntu-latest'
-        container:
-            image: 'ubuntu:20.04'
-        services:
-            nginx:
-                image: 'nginx:1.21'
-        steps:
-            - uses: 'actions/checkout@v3'
-            - uses: 'docker://ubuntu:20.04'
-              with:
-                uses: '/path/to/user.png'
-                image: '/path/to/image.jpg'
-            - runs: |-
-                echo "Hello 😀"
-                if [ "true" == "false" ];
-                  echo "NOPE"
-                fi
-    other_job:
-        uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
-    final_job:
-        uses: './local/path/to/action'
+  my_job:
+    runs-on: 'ubuntu-latest'
+    container:
+      image: 'ubuntu:20.04'
+    services:
+      nginx:
+        image: 'nginx:1.21'
+    steps:
+      - uses: 'actions/checkout@v3'
+      - uses: 'docker://ubuntu:20.04'
+        with:
+          uses: '/path/to/user.png'
+          image: '/path/to/image.jpg'
+      - runs: |-
+          echo "Hello 😀"
+          if [ "true" == "false" ];
+            echo "NOPE"
+          fi
+  other_job:
+    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+  final_job:
+    uses: './local/path/to/action'
 `,
 		},
 		{
 			name:          "handles-leading-dot-slash",
 			yamlFilenames: []string{"./testdata/github.yml"},
+			format:        false,
 			want: `jobs:
-    my_job:
-        runs-on: 'ubuntu-latest'
-        container:
-            image: 'ubuntu:20.04'
-        services:
-            nginx:
-                image: 'nginx:1.21'
-        steps:
-            - uses: 'actions/checkout@v3'
-            - uses: 'docker://ubuntu:20.04'
-              with:
-                uses: '/path/to/user.png'
-                image: '/path/to/image.jpg'
-            - runs: |-
-                echo "Hello 😀"
-                if [ "true" == "false" ];
-                  echo "NOPE"
-                fi
-    other_job:
-        uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
-    final_job:
-        uses: './local/path/to/action'
+  my_job:
+    runs-on: 'ubuntu-latest'
+    container:
+      image: 'ubuntu:20.04'
+    services:
+      nginx:
+        image: 'nginx:1.21'
+    steps:
+      - uses: 'actions/checkout@v3'
+      - uses: 'docker://ubuntu:20.04'
+        with:
+          uses: '/path/to/user.png'
+          image: '/path/to/image.jpg'
+      - runs: |-
+          echo "Hello 😀"
+          if [ "true" == "false" ];
+            echo "NOPE"
+          fi
+  other_job:
+    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+  final_job:
+    uses: './local/path/to/action'
+`,
+		},
+		{
+			name:          "yaml_steps_indent_change",
+			yamlFilenames: []string{"testdata/github.yml"},
+			format:        true,
+			want: `jobs:
+  my_job:
+    runs-on: 'ubuntu-latest'
+    container:
+      image: 'ubuntu:20.04'
+    services:
+      nginx:
+        image: 'nginx:1.21'
+    steps:
+      - uses: 'actions/checkout@v3'
+      - uses: 'docker://ubuntu:20.04'
+        with:
+          uses: '/path/to/user.png'
+          image: '/path/to/image.jpg'
+      - runs: |-
+          echo "Hello 😀"
+          if [ "true" == "false" ];
+            echo "NOPE"
+          fi
+  other_job:
+    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+  final_job:
+    uses: './local/path/to/action'
+`,
+		},
+		{
+			name:          "yaml_all_indent_change",
+			yamlFilenames: []string{"testdata/github-crazy-indent.yml"},
+			format:        true,
+			want: `jobs:
+  my_job:
+    runs-on: 'ubuntu-latest'
+    container:
+      image: 'ubuntu:20.04'
+    services:
+      nginx:
+        image: 'nginx:1.21'
+    steps:
+      - uses: 'actions/checkout@v3'
+      - uses: 'docker://ubuntu:20.04'
+        with:
+          uses: '/path/to/user.png'
+          image: '/path/to/image.jpg'
+      - runs: |-
+          echo "Hello 😀"
+          if [ "true" == "false" ];
+            echo "NOPE"
+          fi
+  other_job:
+    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+  final_job:
+    uses: './local/path/to/action'
 `,
 		},
 	}
@@ -504,16 +561,16 @@ func Test_loadYAMLFiles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			files, err := loadYAMLFiles(os.DirFS(".."), tc.yamlFilenames)
+			files, err := loadYAMLFiles(os.DirFS(".."), tc.yamlFilenames, tc.format)
 			if err != nil {
 				t.Fatalf("loadYAMLFiles() returned error: %s", err)
 			}
 
-			var buf bytes.Buffer
-			if err := yaml.NewEncoder(&buf).Encode(files.nodes()[0]); err != nil {
-				t.Errorf("failed to marshal yaml to string: %s", err)
+			b, err := marshalYAML(files[0].node)
+			if err != nil {
+				t.Fatalf("marshalYAML() returned error: %s", err)
 			}
-			got := buf.String()
+			got := string(b)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("returned diff (-want, +got):\n%s", diff)

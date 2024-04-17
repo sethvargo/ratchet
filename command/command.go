@@ -168,7 +168,6 @@ func FixIndentation(f *loadResult) error {
 	afterIndex := 0
 	// Loop through both lists line by line using a two-pointer technique.
 	for _, l := range lines {
-		fmt.Println(l, afterLines[afterIndex])
 		token := strings.TrimSpace(l)
 		if token == "" {
 			editedLines = append(editedLines, l)

@@ -334,7 +334,7 @@ func Test_FixIndentation(t *testing.T) {
 		want          string
 	}{
 		{
-			name:          "yamlA_multiple_empty_lines",
+			name:          "yaml_steps_indent_change",
 			yamlFilenames: []string{"testdata/github.yml"},
 			want: `jobs:
   my_job:
@@ -357,6 +357,44 @@ func Test_FixIndentation(t *testing.T) {
 
       - runs: |-
           echo "Hello 😀"
+          if [ "true" == "false" ];
+            echo "NOPE"
+          fi
+
+  other_job:
+    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+
+  final_job:
+    uses: './local/path/to/action'
+`,
+		},
+		{
+			name:          "yaml_all_indent_change",
+			yamlFilenames: []string{"testdata/github-crazy-indent.yml"},
+			want: `jobs:
+  my_job:
+    runs-on: 'ubuntu-latest'
+
+    container:
+      image: 'ubuntu:20.04'
+
+    services:
+      nginx:
+        image: 'nginx:1.21'
+
+    steps:
+      - uses: 'actions/checkout@v3'
+
+      - uses: 'docker://ubuntu:20.04'
+        with:
+          uses: '/path/to/user.png'
+          image: '/path/to/image.jpg'
+
+      - runs: |-
+          echo "Hello 😀"
+          if [ "true" == "false" ];
+            echo "NOPE"
+          fi
 
   other_job:
     uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
@@ -421,6 +459,9 @@ func Test_loadYAMLFiles(t *testing.T) {
                 image: '/path/to/image.jpg'
             - runs: |-
                 echo "Hello 😀"
+                if [ "true" == "false" ];
+                  echo "NOPE"
+                fi
     other_job:
         uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
     final_job:
@@ -446,6 +487,9 @@ func Test_loadYAMLFiles(t *testing.T) {
                 image: '/path/to/image.jpg'
             - runs: |-
                 echo "Hello 😀"
+                if [ "true" == "false" ];
+                  echo "NOPE"
+                fi
     other_job:
         uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
     final_job:

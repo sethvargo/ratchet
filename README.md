@@ -213,7 +213,7 @@ function ratchet {
     system auth, similar to the Docker and gcloud CLIs.
 
 -   The GitHub resolver defaults to public github.com. Provide an oauth access
-    token with appropriate permissions via the `ACTIONS_TOKEN` environment
+    token with appropriate permissions via the `GITHUB_TOKEN` environment
     variable. To use a GitHub Enterprise installation, set the
     `ACTIONS_BASE_URL` and `ACTIONS_UPLOAD_URL` environment variables to point
     your instance.

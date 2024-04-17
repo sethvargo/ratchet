@@ -154,35 +154,30 @@ func FixIndentation(f *loadResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
 	}
-	beforeContent := string(f.contents)
-	afterContent := string(updated)
-	lines := strings.Split(beforeContent, "\n")
+	lines := strings.Split(string(f.contents), "\n")
+	afterLines := strings.Split(string(updated), "\n")
 
 	editedLines := []string{}
-	lastLineInAfter := 0
+	afterIndex := 0
+	// Loop through both lists line by line using a two-pointer technique.
 	for _, l := range lines {
+		fmt.Println(l, afterLines[afterIndex])
 		token := strings.TrimSpace(l)
 		if token == "" {
 			editedLines = append(editedLines, l)
 			continue
 		}
-		a := strings.Index(afterContent[lastLineInAfter:], token)
-		if a == -1 {
-			a = 0
-		}
-		after := a + lastLineInAfter
-		newline := strings.LastIndex(afterContent[lastLineInAfter:after], "\n") + lastLineInAfter
-
-		if newline == -1 {
-			newline = 0
-		} else if after != newline {
-			newline++
+		currentAfterLine := afterLines[afterIndex]
+		indexInAfterLine := strings.Index(currentAfterLine, token)
+		for indexInAfterLine == -1 {
+			afterIndex++
+			currentAfterLine = afterLines[afterIndex]
+			indexInAfterLine = strings.Index(currentAfterLine, token)
 		}
 
-		lineWithCorrectIndent := afterContent[newline:after] + token
+		lineWithCorrectIndent := currentAfterLine[:indexInAfterLine] + token
 		editedLines = append(editedLines, lineWithCorrectIndent)
-
-		lastLineInAfter = after
+		afterIndex++
 	}
 
 	f.contents = []byte(strings.Join(editedLines, "\n"))

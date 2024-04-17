@@ -123,7 +123,7 @@ func (r loadResults) nodes() []*yaml.Node {
 	return n
 }
 
-func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
+func loadYAMLFiles(fsys fs.FS, paths []string, format bool) (loadResults, error) {
 	r := make(loadResults, 0, len(paths))
 
 	for _, pth := range paths {
@@ -137,12 +137,19 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 		if err := yaml.Unmarshal(contents, &node); err != nil {
 			return nil, fmt.Errorf("failed to parse yaml for %s: %w", pth, err)
 		}
-
-		r = append(r, &loadResult{
+		lr := &loadResult{
 			path:     pth,
 			node:     &node,
 			contents: contents,
-		})
+		}
+
+		if format {
+			if err := FixIndentation(lr); err != nil {
+				return nil, fmt.Errorf("failed to format indentation: %w", err)
+			}
+		}
+
+		r = append(r, lr)
 	}
 
 	return r, nil

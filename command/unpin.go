@@ -64,17 +64,13 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	fsys := os.DirFS(".")
 
-	files, err := loadYAMLFiles(fsys, args)
+	files, err := loadYAMLFiles(fsys, args, true)
 	if err != nil {
 		return err
 	}
 
 	if len(files) > 1 && c.flagOut != "" && !strings.HasSuffix(c.flagOut, "/") {
 		return fmt.Errorf("-out must be a directory when pinning multiple files")
-	}
-
-	for _, f := range files {
-		FixIndentation(f)
 	}
 
 	if err := parser.Unpin(ctx, files.nodes()); err != nil {

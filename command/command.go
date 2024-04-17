@@ -123,7 +123,7 @@ func (r loadResults) nodes() []*yaml.Node {
 	return n
 }
 
-func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
+func loadYAMLFiles(fsys fs.FS, paths []string, format bool) (loadResults, error) {
 	r := make(loadResults, 0, len(paths))
 
 	for _, pth := range paths {
@@ -137,15 +137,57 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 		if err := yaml.Unmarshal(contents, &node); err != nil {
 			return nil, fmt.Errorf("failed to parse yaml for %s: %w", pth, err)
 		}
-
-		r = append(r, &loadResult{
+		lr := &loadResult{
 			path:     pth,
 			node:     &node,
 			contents: contents,
-		})
+		}
+
+		if format {
+			if err := FixIndentation(lr); err != nil {
+				return nil, fmt.Errorf("failed to format indentation: %w", err)
+			}
+		}
+
+		r = append(r, lr)
 	}
 
 	return r, nil
+}
+
+// FixIndentation corrects the indentation for the given loadResult and edits it in-place.
+func FixIndentation(f *loadResult) error {
+	updated, err := marshalYAML(f.node)
+	if err != nil {
+		return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
+	}
+	lines := strings.Split(string(f.contents), "\n")
+	afterLines := strings.Split(string(updated), "\n")
+
+	editedLines := []string{}
+	afterIndex := 0
+	// Loop through both lists line by line using a two-pointer technique.
+	for _, l := range lines {
+		token := strings.TrimSpace(l)
+		if token == "" {
+			editedLines = append(editedLines, l)
+			continue
+		}
+		currentAfterLine := afterLines[afterIndex]
+		indexInAfterLine := strings.Index(currentAfterLine, token)
+		for indexInAfterLine == -1 {
+			afterIndex++
+			currentAfterLine = afterLines[afterIndex]
+			indexInAfterLine = strings.Index(currentAfterLine, token)
+		}
+
+		lineWithCorrectIndent := currentAfterLine[:indexInAfterLine] + token
+		editedLines = append(editedLines, lineWithCorrectIndent)
+		afterIndex++
+	}
+
+	f.contents = []byte(strings.Join(editedLines, "\n"))
+	return nil
 }
 
 func removeNewLineChanges(beforeContent, afterContent string) string {

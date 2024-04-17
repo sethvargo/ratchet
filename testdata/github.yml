@@ -19,6 +19,9 @@ jobs:
 
     - runs: |-
         echo "Hello 😀"
+        if [ "true" == "false" ];
+          echo "NOPE"
+        fi
 
   other_job:
     uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'

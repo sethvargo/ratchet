@@ -62,7 +62,7 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	fsys := os.DirFS(".")
 
-	files, err := loadYAMLFiles(fsys, args)
+	files, err := loadYAMLFiles(fsys, args, false)
 	if err != nil {
 		return err
 	}

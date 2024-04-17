@@ -144,7 +144,7 @@ func loadYAMLFiles(fsys fs.FS, paths []string, format bool) (loadResults, error)
 		}
 
 		if format {
-			if err := FixIndentation(lr); err != nil {
+			if err := fixIndentation(lr); err != nil {
 				return nil, fmt.Errorf("failed to format indentation: %w", err)
 			}
 		}
@@ -155,8 +155,8 @@ func loadYAMLFiles(fsys fs.FS, paths []string, format bool) (loadResults, error)
 	return r, nil
 }
 
-// FixIndentation corrects the indentation for the given loadResult and edits it in-place.
-func FixIndentation(f *loadResult) error {
+// fixIndentation corrects the indentation for the given loadResult and edits it in-place.
+func fixIndentation(f *loadResult) error {
 	updated, err := marshalYAML(f.node)
 	if err != nil {
 		return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)

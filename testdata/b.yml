@@ -1,0 +1,33 @@
+jobs:
+  init:
+    runs-on:    'ubuntu-latest'
+    outputs:
+      directories: '${{ steps.dirs.outputs.directories }}'
+    steps:
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+      - id : 'print'
+        runs: 'echo "hello"'
+      - name: 'Checkout'
+        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
+
+      - name: 'Guardian Directories'
+        id: 'dirs'
+        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
+        with:
+          directories: '${{ inputs.directories }}'

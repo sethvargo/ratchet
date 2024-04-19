@@ -1,4 +1,4 @@
 steps:
-- name: 'ubuntu:20.04'
-  args:
-  - 'name: foo'
+  - name: 'ubuntu:20.04'
+    args:
+      - 'name: foo'

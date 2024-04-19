@@ -80,7 +80,7 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 
 	fsys := os.DirFS(".")
 
-	files, err := loadYAMLFiles(fsys, args, true)
+	files, err := loadYAMLFiles(fsys, args)
 	if err != nil {
 		return err
 	}
@@ -102,12 +102,11 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 			outFile = f.path
 		}
 
-		updated, err := marshalYAML(f.node)
+		final, err := f.marshalYAML()
 		if err != nil {
 			return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
 		}
 
-		final := removeNewLineChanges(string(f.contents), string(updated))
 		if err := atomic.Write(f.path, outFile, strings.NewReader(final)); err != nil {
 			return fmt.Errorf("failed to save file %s: %w", outFile, err)
 		}

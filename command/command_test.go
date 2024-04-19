@@ -1,471 +1,115 @@
 package command
 
 import (
+	"io/fs"
 	"os"
-	"reflect"
 	"testing"
+	"testing/fstest"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-const (
-	yamlA = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-	  - uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-
-      - uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlAChanges = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-	  - uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-      - uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@sdfswdf23423423423423sdfsdfsdfsdfdsfsdf2' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlAChangesFormatted = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-	  - uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-
-      - uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@sdfswdf23423423423423sdfsdfsdfsdfdsfsdf2' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlB = `
-jobs:
-  init:
-    runs-on:  'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - name: 'Checkout'
-        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlBChanges = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - name: 'Checkout'
-        uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@sdfswdf23423423423423sdfsdfsdfsdfdsfsdf2' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlBChangesFormatted = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - name: 'Checkout'
-        uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@sdfswdf23423423423423sdfsdfsdfsdfdsfsdf2' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlC = `
-jobs:
-  init:
-    runs-on:    'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - name: 'Checkout'
-        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlCChanges = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - name: 'Checkout'
-        uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@sdfswdf23423423423423sdfsdfsdfsdfdsfsdf2' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlCChangesFormatted = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - id : 'print'
-        runs: 'echo "hello"'
-      - name: 'Checkout'
-        uses: 'actions/checkout@9239842384293848238sfsdf823e234234234sds' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@sdfswdf23423423423423sdfsdfsdfsdfdsfsdf2' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-`
-	yamlD = `
-jobs:
-  init:
-    runs-on:    'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - name: 'Checkout'
-        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-          thing: |-
-            this is my string
-            it has many lines
-
-            some of them even
-            have new lines
-`
-	yamlDChanges = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - name: 'Checkout'
-        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-          thing: |-
-            this is my string
-            it has many lines
-
-            some of them even
-            have new lines
-`
-	yamlDChangesFormatted = `
-jobs:
-  init:
-    runs-on: 'ubuntu-latest'
-    outputs:
-      directories: '${{ steps.dirs.outputs.directories }}'
-    steps:
-      - name: 'Checkout'
-        uses: 'actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab' # ratchet:actions/checkout@v3
-
-      - name: 'Guardian Directories'
-        id: 'dirs'
-        uses: 'abcxyz/guardian/.github/actions/directories@52a8396df1c40bde244947c887d2c5dfbd36e4ce' # ratchet:abcxyz/guardian/.github/actions/directories@main
-        with:
-          directories: '${{ inputs.directories }}'
-          thing: |-
-            this is my string
-            it has many lines
-
-            some of them even
-            have new lines
-`
-)
-
-func Test_removeNewLineChanges(t *testing.T) {
+func Test_loadYAMLFiles(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		name       string
-		yamlBefore string
-		yamlAfter  string
-		want       string
-	}{
-		{
-			name:       "yamlA_multiple_empty_lines",
-			yamlBefore: yamlA,
-			yamlAfter:  yamlAChanges,
-			want:       yamlAChangesFormatted,
-		},
-		{
-			name:       "yamlB_single_empty_line",
-			yamlBefore: yamlB,
-			yamlAfter:  yamlBChanges,
-			want:       yamlBChangesFormatted,
-		},
-		{
-			name:       "yamlC_long_unchanged_section",
-			yamlBefore: yamlC,
-			yamlAfter:  yamlCChanges,
-			want:       yamlCChangesFormatted,
-		},
-		{
-			name:       "yamlD_multiline_string",
-			yamlBefore: yamlD,
-			yamlAfter:  yamlDChanges,
-			want:       yamlDChangesFormatted,
-		},
+	fsys := os.DirFS("../testdata")
+
+	cases := map[string]string{
+		"a.yml":                   "a.golden.yml",
+		"b.yml":                   "b.golden.yml",
+		"c.yml":                   "",
+		"circleci.yml":            "",
+		"cloudbuild.yml":          "",
+		"drone.yml":               "",
+		"github-crazy-indent.yml": "github.yml",
+		"github-issue-80.yml":     "",
+		"github.yml":              "",
+		"gitlabci.yml":            "",
+		"no-trailing-newline.yml": "no-trailing-newline.golden.yml",
+		"tekton.yml":              "",
 	}
 
-	for _, tc := range cases {
-		tc := tc
+	for input, expected := range cases {
+		inputFilename, expectedFilename := input, expected
 
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(inputFilename, func(t *testing.T) {
 			t.Parallel()
 
-			got := removeNewLineChanges(tc.yamlBefore, tc.yamlAfter)
+			files, err := loadYAMLFiles(fsys, []string{inputFilename})
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("expected %s to be %s", got, tc.want)
+			got, err := files[0].marshalYAML()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if expectedFilename == "" {
+				expectedFilename = inputFilename
+			}
+			want, err := fsys.(fs.ReadFileFS).ReadFile(expectedFilename)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got != string(want) {
+				t.Errorf("expected\n\n%s\n\nto be\n\n%s\n", got, want)
 			}
 		})
 	}
 }
 
-func Test_loadYAMLFiles(t *testing.T) {
+func Test_computeNewlineTargets_simple(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name          string
-		yamlFilenames []string
-		format        bool
-		fixNewlines   bool
-		want          string
+		name   string
+		before string
+		after  string
+		want   []int
 	}{
 		{
-			name:          "yamlA_multiple_empty_lines",
-			yamlFilenames: []string{"testdata/github.yml"},
-			format:        false,
-			fixNewlines:   false,
-			want: `jobs:
-  my_job:
-    runs-on: 'ubuntu-latest'
-    container:
-      image: 'ubuntu:20.04'
-    services:
-      nginx:
-        image: 'nginx:1.21'
-    steps:
-      - uses: 'actions/checkout@v3'
-      - uses: 'docker://ubuntu:20.04'
-        with:
-          uses: '/path/to/user.png'
-          image: '/path/to/image.jpg'
-      - runs: |-
-          echo "Hello 😀"
-          if [ "true" == "false" ];
-            echo "NOPE"
-          fi
-  other_job:
-    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
-  final_job:
-    uses: './local/path/to/action'
-`,
+			name:   "empty",
+			before: "",
+			after:  "",
+			want:   []int{},
 		},
 		{
-			name:          "handles-leading-dot-slash",
-			yamlFilenames: []string{"./testdata/github.yml"},
-			format:        false,
-			fixNewlines:   false,
-			want: `jobs:
-  my_job:
-    runs-on: 'ubuntu-latest'
-    container:
-      image: 'ubuntu:20.04'
-    services:
-      nginx:
-        image: 'nginx:1.21'
-    steps:
-      - uses: 'actions/checkout@v3'
-      - uses: 'docker://ubuntu:20.04'
-        with:
-          uses: '/path/to/user.png'
-          image: '/path/to/image.jpg'
-      - runs: |-
-          echo "Hello 😀"
-          if [ "true" == "false" ];
-            echo "NOPE"
-          fi
-  other_job:
-    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
-  final_job:
-    uses: './local/path/to/action'
-`,
+			name:   "single_newline",
+			before: "\n",
+			after:  "\n",
+			want:   []int{},
 		},
 		{
-			name:          "yaml_steps_indent_change",
-			yamlFilenames: []string{"testdata/github.yml"},
-			format:        true,
-			fixNewlines:   true,
-			want: `jobs:
-  my_job:
-    runs-on: 'ubuntu-latest'
-
-    container:
-      image: 'ubuntu:20.04'
-
-    services:
-      nginx:
-        image: 'nginx:1.21'
-
-    steps:
-      - uses: 'actions/checkout@v3'
-
-      - uses: 'docker://ubuntu:20.04'
-        with:
-          uses: '/path/to/user.png'
-          image: '/path/to/image.jpg'
-
-      - runs: |-
-          echo "Hello 😀"
-          if [ "true" == "false" ];
-            echo "NOPE"
-          fi
-
-  other_job:
-    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
-
-  final_job:
-    uses: './local/path/to/action'
-`,
+			name:   "leading_whitespace",
+			before: "\n\nfoo",
+			after:  "foo",
+			want:   []int{0, 1},
 		},
 		{
-			name:          "yaml_all_indent_change",
-			yamlFilenames: []string{"testdata/github-crazy-indent.yml"},
-			format:        true,
-			fixNewlines:   true,
-			want: `jobs:
-  my_job:
-    runs-on: 'ubuntu-latest'
-
-    container:
-      image: 'ubuntu:20.04'
-
-    services:
-      nginx:
-        image: 'nginx:1.21'
-
-    steps:
-      - uses: 'actions/checkout@v3'
-
-      - uses: 'docker://ubuntu:20.04'
-        with:
-          uses: '/path/to/user.png'
-          image: '/path/to/image.jpg'
-
-      - runs: |-
-          echo "Hello 😀"
-          if [ "true" == "false" ];
-            echo "NOPE"
-          fi
-
-  other_job:
-    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
-
-  final_job:
-    uses: './local/path/to/action'
-`,
+			name:   "trailing_whitespace",
+			before: "foo\nbar\n\n",
+			after:  "foo\nbar",
+			want:   []int{2, 3},
+		},
+		{
+			name:   "interior_whitespace",
+			before: "foo\n\nbar\n\n\nbaz",
+			after:  "foo\nbar\nbaz",
+			want:   []int{1, 3, 4},
+		},
+		{
+			name:   "interior_whitespace_leading_lines",
+			before: "foo\n\n  bar\n\n\nbaz",
+			after:  "foo\nbar\nbaz",
+			want:   []int{1, 3, 4},
+		},
+		{
+			name:   "interior_whitespace_tailing_lines",
+			before: "foo\n\nbar  \n\n\nbaz",
+			after:  "foo\nbar\nbaz",
+			want:   []int{1, 3, 4},
 		},
 	}
 
@@ -475,22 +119,112 @@ func Test_loadYAMLFiles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			files, err := loadYAMLFiles(os.DirFS(".."), tc.yamlFilenames, tc.format)
-			if err != nil {
-				t.Fatalf("loadYAMLFiles() returned error: %s", err)
+			got := computeNewlineTargets(tc.before, tc.after)
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("unexpected diff (+got, -want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_unmarshalMarshal(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		yaml string
+		want []int
+	}{
+		{
+			name: "single",
+			yaml: "\nAPPARENTLY_THIS_IS_VALID_YAML\n",
+			want: []int{0},
+		},
+		{
+			name: "multiline",
+			yaml: `---
+stages:
+  - build
+  - test
+
+build-code-job:
+  stage: build
+  image:
+    name: gcr.io/distroless/static-debian11:nonroot
+    entrypoint: [""]
+  script:
+    - echo "Job 1"
+
+test-code-job1:
+  stage: test
+  image: node:12
+  script:
+    - echo "Job 2"
+`,
+			want: []int{3, 11},
+		},
+		{
+			name: "folded_block_scalar",
+			yaml: `this:
+  is: >-
+    a multiline
+
+    string that
+    spans lines
+
+  that:
+    has: >-
+      other multline
+      folded scalars
+`,
+			want: []int{6},
+		},
+		{
+			name: "literal_block_scalar",
+			yaml: `this:
+  is: |-
+    a multiline
+
+    string that
+    spans lines
+
+  that:
+    has: |-
+      other multline
+      literal scalars
+`,
+			want: []int{6},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			fsys := fstest.MapFS{
+				"file.yml": &fstest.MapFile{
+					Data: []byte(tc.yaml),
+				},
 			}
 
-			b, err := marshalYAML(files[0].node)
+			r, err := loadYAMLFiles(fsys, []string{"file.yml"})
 			if err != nil {
-				t.Fatalf("marshalYAML() returned error: %s", err)
-			}
-			got := string(b)
-			if tc.fixNewlines {
-				got = removeNewLineChanges(string(files[0].contents), got)
+				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("returned diff (-want, +got):\n%s", diff)
+			f := r[0]
+			if diff := cmp.Diff(f.newlines, tc.want); diff != "" {
+				t.Errorf("unexpected newlines diff (+got, -want):\n%s", diff)
+			}
+
+			s, err := f.marshalYAML()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(s, tc.yaml); diff != "" {
+				t.Errorf("unexpected render diff (+got, -want):\n%s", diff)
 			}
 		})
 	}

@@ -9,14 +9,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
-	"github.com/hexops/gotextdiff"
-	"github.com/hexops/gotextdiff/myers"
-	"github.com/hexops/gotextdiff/span"
 	"github.com/sethvargo/ratchet/internal/version"
 )
 
@@ -93,24 +92,48 @@ func extractCommandAndArgs(args []string) (string, []string) {
 }
 
 // marshalYAML encodes the yaml node into the given writer.
-func marshalYAML(m *yaml.Node) ([]byte, error) {
+func marshalYAML(m *yaml.Node) (string, error) {
 	var b bytes.Buffer
 
 	enc := yaml.NewEncoder(&b)
 	enc.SetIndent(2)
+	enc.SetAssumeBlockAsLiteral(true)
 	if err := enc.Encode(m); err != nil {
-		return nil, fmt.Errorf("failed to encode yaml: %w", err)
+		return "", fmt.Errorf("failed to encode yaml: %w", err)
 	}
 	if err := enc.Close(); err != nil {
-		return nil, fmt.Errorf("failed to finalize yaml: %w", err)
+		return "", fmt.Errorf("failed to finalize yaml: %w", err)
 	}
-	return b.Bytes(), nil
+	return b.String(), nil
 }
 
 type loadResult struct {
 	path     string
 	node     *yaml.Node
-	contents []byte
+	contents string
+	newlines []int
+}
+
+func (r *loadResult) marshalYAML() (string, error) {
+	contents, err := marshalYAML(r.node)
+	if err != nil {
+		return "", err
+	}
+
+	// Restore newlines
+	lines := strings.Split(contents, "\n")
+
+	for _, v := range r.newlines {
+		lines = slices.Insert(lines, v, "")
+	}
+
+	// Handle the edge case where a document starts with "---", which the Go YAML
+	// parser discards.
+	if strings.HasPrefix(strings.TrimSpace(r.contents), "---") && !strings.HasPrefix(contents, "---") {
+		lines = slices.Insert(lines, 0, "---")
+	}
+
+	return strings.Join(lines, "\n"), nil
 }
 
 type loadResults []*loadResult
@@ -123,7 +146,7 @@ func (r loadResults) nodes() []*yaml.Node {
 	return n
 }
 
-func loadYAMLFiles(fsys fs.FS, paths []string, format bool) (loadResults, error) {
+func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 	r := make(loadResults, 0, len(paths))
 
 	for _, pth := range paths {
@@ -134,94 +157,75 @@ func loadYAMLFiles(fsys fs.FS, paths []string, format bool) (loadResults, error)
 		}
 
 		var node yaml.Node
-		if err := yaml.Unmarshal(contents, &node); err != nil {
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.SetScanBlockScalarAsLiteral(true)
+		if err := dec.Decode(&node); err != nil {
 			return nil, fmt.Errorf("failed to parse yaml for %s: %w", pth, err)
 		}
-		lr := &loadResult{
+
+		// Remarshal the content before any modification so we can compute the
+		// places where a newline should be inserted post-rendering.
+		remarshaled, err := marshalYAML(&node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to remarshal yaml for %s: %w", pth, err)
+		}
+
+		newlines := computeNewlineTargets(string(contents), remarshaled)
+
+		r = append(r, &loadResult{
 			path:     pth,
 			node:     &node,
-			contents: contents,
-		}
-
-		if format {
-			if err := fixIndentation(lr); err != nil {
-				return nil, fmt.Errorf("failed to format indentation: %w", err)
-			}
-		}
-
-		r = append(r, lr)
+			contents: string(contents),
+			newlines: newlines,
+		})
 	}
 
 	return r, nil
 }
 
-// fixIndentation corrects the indentation for the given loadResult and edits it in-place.
-func fixIndentation(f *loadResult) error {
-	updated, err := marshalYAML(f.node)
-	if err != nil {
-		return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
-	}
-	lines := strings.Split(string(f.contents), "\n")
-	afterLines := strings.Split(string(updated), "\n")
+func computeNewlineTargets(before, after string) []int {
+	before = strings.TrimPrefix(before, "---\n")
 
-	editedLines := []string{}
-	afterIndex := 0
-	// Loop through both lists line by line using a two-pointer technique.
-	for _, l := range lines {
-		token := strings.TrimSpace(l)
-		if token == "" {
-			editedLines = append(editedLines, l)
+	debug, _ := strconv.ParseBool(os.Getenv("RATCHET_DEBUG_NEWLINE_PARSING"))
+	if debug {
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Original content:\n")
+		for i, l := range strings.Split(string(before), "\n") {
+			fmt.Fprintf(os.Stderr, "%3d:  %s\n", i, l)
+		}
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Rendered content:\n")
+		for i, l := range strings.Split(after, "\n") {
+			fmt.Fprintf(os.Stderr, "%3d:  %s\n", i, l)
+		}
+		fmt.Fprintf(os.Stderr, "\n")
+	}
+
+	result := make([]int, 0, 8)
+	afteri, afterLines := 0, strings.Split(after, "\n")
+	beforeLines := strings.Split(before, "\n")
+
+	for beforei := 0; beforei < len(beforeLines); beforei++ {
+		if afteri >= len(afterLines) {
+			result = append(result, beforei)
 			continue
 		}
-		currentAfterLine := afterLines[afterIndex]
-		indexInAfterLine := strings.Index(currentAfterLine, token)
-		for indexInAfterLine == -1 {
-			afterIndex++
-			currentAfterLine = afterLines[afterIndex]
-			indexInAfterLine = strings.Index(currentAfterLine, token)
-		}
 
-		lineWithCorrectIndent := currentAfterLine[:indexInAfterLine] + token
-		editedLines = append(editedLines, lineWithCorrectIndent)
-		afterIndex++
-	}
+		beforeLine := strings.TrimSpace(beforeLines[beforei])
+		afterLine := strings.TrimSpace(afterLines[afteri])
 
-	f.contents = []byte(strings.Join(editedLines, "\n"))
-	return nil
-}
-
-func removeNewLineChanges(beforeContent, afterContent string) string {
-	lines := strings.Split(beforeContent, "\n")
-	edits := myers.ComputeEdits(span.URIFromPath("before.txt"), beforeContent, afterContent)
-	unified := gotextdiff.ToUnified("before.txt", "after.txt", beforeContent, edits)
-
-	editedLines := make(map[int]string)
-	// Iterates through all changes and only keep changes to lines that are not empty.
-	for _, h := range unified.Hunks {
-		// Changes are in-order of delete line followed by insert line for lines that were modified.
-		// We want to locate the position of all deletes of non-empty lines and replace
-		// these in the original content with the modified line.
-		var deletePositions []int
-		inserts := 0
-		for i, l := range h.Lines {
-			if l.Kind == gotextdiff.Delete && l.Content != "\n" {
-				deletePositions = append(deletePositions, h.FromLine+i-1-inserts)
-			}
-			if l.Kind == gotextdiff.Insert && l.Content != "" {
-				pos := deletePositions[0]
-				deletePositions = deletePositions[1:]
-				editedLines[pos] = strings.TrimSuffix(l.Content, "\n")
-				inserts++
-			}
-		}
-	}
-	var formattedLines []string
-	for i, line := range lines {
-		if editedLine, ok := editedLines[i]; ok {
-			formattedLines = append(formattedLines, editedLine)
+		if beforeLine != afterLine && beforeLine == "" {
+			result = append(result, beforei)
 		} else {
-			formattedLines = append(formattedLines, line)
+			afteri++
 		}
 	}
-	return strings.Join(formattedLines, "\n")
+
+	if debug {
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "newline indicies: %v\n", result)
+		fmt.Fprintf(os.Stderr, "\n")
+	}
+
+	return result
 }

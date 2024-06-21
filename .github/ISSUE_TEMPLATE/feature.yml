@@ -2,7 +2,7 @@ name: 'Feature request'
 description: 'File a feature request'
 
 labels:
-- 'enhancement'
+  - 'enhancement'
 
 body:
   - type: 'markdown'

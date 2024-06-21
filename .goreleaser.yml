@@ -1,3 +1,5 @@
+version: 2
+
 before:
   hooks:
     - 'go mod tidy'
@@ -95,17 +97,6 @@ archives:
 checksum:
   name_template: 'ratchet_{{ .Version }}_SHA512SUMS'
   algorithm: 'sha512'
-
-signs:
-  - artifacts: 'checksum'
-    args:
-      - '--batch'
-      - '--local-user'
-      - '{{ .Env.GPG_FINGERPRINT }}'
-      - '--output'
-      - '${signature}'
-      - '--detach-sign'
-      - '${artifact}'
 
 changelog:
   use: 'github'

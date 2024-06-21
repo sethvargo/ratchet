@@ -11,6 +11,11 @@ import (
 
 type CircleCI struct{}
 
+// DenormalizeRef changes the resolved ref into a ref that the parser expects.
+func (c *CircleCI) DenormalizeRef(ref string) string {
+	return resolver.DenormalizeRef(ref)
+}
+
 // Parse pulls the CircleCI refs from the documents. Unfortunately it does not
 // process "orbs" because there is no documented API for resolving orbs to an
 // absolute version.

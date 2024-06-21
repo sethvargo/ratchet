@@ -11,6 +11,11 @@ import (
 
 type CloudBuild struct{}
 
+// DenormalizeRef changes the resolved ref into a ref that the parser expects.
+func (c *CloudBuild) DenormalizeRef(ref string) string {
+	return resolver.DenormalizeRef(ref)
+}
+
 // Parse pulls the Google Cloud Build refs from the documents.
 func (c *CloudBuild) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList

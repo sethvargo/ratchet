@@ -23,6 +23,7 @@ const (
 // Parser defines an interface which parses references out of the given yaml
 // node.
 type Parser interface {
+	DenormalizeRef(ref string) string
 	Parse(nodes []*yaml.Node) (*RefsList, error)
 }
 
@@ -220,11 +221,12 @@ func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes []
 				merrLock.Unlock()
 			}
 
-			denormLatest := resolver.DenormalizeRef(latest)
+			denormRef := parser.DenormalizeRef(ref)
+			denormLatest := parser.DenormalizeRef(latest)
 
 			for _, node := range nodes {
 				node.LineComment = appendOriginalToComment(node.LineComment, denormLatest)
-				node.Value = denormLatest
+				node.Value = strings.Replace(node.Value, denormRef, denormLatest, 1)
 			}
 		}()
 	}

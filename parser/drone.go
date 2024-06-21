@@ -11,6 +11,11 @@ import (
 
 type Drone struct{}
 
+// DenormalizeRef changes the resolved ref into a ref that the parser expects.
+func (d *Drone) DenormalizeRef(ref string) string {
+	return resolver.DenormalizeRef(ref)
+}
+
 // Parse pulls the Drone Ci refs from the documents.
 func (d *Drone) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList

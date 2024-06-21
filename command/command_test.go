@@ -20,6 +20,7 @@ func Test_loadYAMLFiles(t *testing.T) {
 		"c.yml":                   "",
 		"circleci.yml":            "",
 		"cloudbuild.yml":          "",
+		"docker.yml":              "",
 		"drone.yml":               "",
 		"github-crazy-indent.yml": "github.yml",
 		"github-issue-80.yml":     "",

@@ -11,11 +11,16 @@ import (
 
 type Tekton struct{}
 
+// DenormalizeRef changes the resolved ref into a ref that the parser expects.
+func (t *Tekton) DenormalizeRef(ref string) string {
+	return resolver.DenormalizeRef(ref)
+}
+
 // Parse pulls the Tekton Ci refs from the documents.
-func (d *Tekton) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (t *Tekton) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 	for i, node := range nodes {
-		if err := d.parseOne(&refs, node); err != nil {
+		if err := t.parseOne(&refs, node); err != nil {
 			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
 		}
 	}
@@ -48,17 +53,17 @@ func (d *Tekton) parseOne(refs *RefsList, node *yaml.Node) error {
 
 	return nil
 }
-func (d *Tekton) findSpecs(refs *RefsList, node *yaml.Node) error {
+
+func (d *Tekton) findSpecs(refs *RefsList, node *yaml.Node) {
 	for i, specsMap := range node.Content {
 		if specsMap.Value == "spec" {
 			specs := node.Content[i+1]
 			d.findImages(refs, specs)
 		}
 	}
-	return nil
 }
 
-func (d *Tekton) findImages(refs *RefsList, node *yaml.Node) error {
+func (d *Tekton) findImages(refs *RefsList, node *yaml.Node) {
 	for i, property := range node.Content {
 		if property.Value == "image" {
 			image := node.Content[i+1]
@@ -69,5 +74,4 @@ func (d *Tekton) findImages(refs *RefsList, node *yaml.Node) error {
 			d.findImages(refs, property)
 		}
 	}
-	return nil
 }

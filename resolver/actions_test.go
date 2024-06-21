@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestResolve(t *testing.T) {
+func TestActions_Resolve(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -57,7 +57,7 @@ func TestResolve(t *testing.T) {
 	}
 }
 
-func TestLatestVersion(t *testing.T) {
+func TestActions_LatestVersion(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -125,7 +125,7 @@ func TestLatestVersion(t *testing.T) {
 	}
 }
 
-func TestParseRef(t *testing.T) {
+func TestParseActionRef(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {

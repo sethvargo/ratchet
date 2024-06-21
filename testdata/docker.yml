@@ -1,0 +1,8 @@
+jobs:
+  docker:
+    steps:
+      - name: 'docker'
+        uses: 'docker://alpine:3'
+        with:
+          entrypoint: '/bin/sh'
+          args: '-euc "test -n "/bin/sh"'

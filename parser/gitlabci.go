@@ -11,6 +11,11 @@ import (
 
 type GitLabCI struct{}
 
+// DenormalizeRef changes the resolved ref into a ref that the parser expects.
+func (c *GitLabCI) DenormalizeRef(ref string) string {
+	return resolver.DenormalizeRef(ref)
+}
+
 // Parse pulls the image references from GitLab CI configuration files. It does
 // not support references with variables.
 func (c *GitLabCI) Parse(nodes []*yaml.Node) (*RefsList, error) {

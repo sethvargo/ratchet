@@ -12,6 +12,16 @@ import (
 
 type Actions struct{}
 
+// DenormalizeRef changes the resolved ref into a ref that the parser expects.
+func (a *Actions) DenormalizeRef(ref string) string {
+	isContainer := strings.HasPrefix(ref, resolver.ContainerProtocol)
+	ref = resolver.DenormalizeRef(ref)
+	if isContainer {
+		return "docker://" + ref
+	}
+	return ref
+}
+
 // Parse pulls the GitHub Actions refs from the documents.
 func (a *Actions) Parse(nodes []*yaml.Node) (*RefsList, error) {
 	var refs RefsList

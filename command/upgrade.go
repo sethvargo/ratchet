@@ -38,6 +38,7 @@ type UpgradeCommand struct {
 	flagConcurrency int64
 	flagParser      string
 	flagOut         string
+	flagPin         bool
 }
 
 func (c *UpgradeCommand) Desc() string {
@@ -55,6 +56,7 @@ func (c *UpgradeCommand) Flags() *flag.FlagSet {
 		"maximum number of concurrent resolutions")
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
+	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions (defaults to true)")
 
 	return f
 }
@@ -94,8 +96,10 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to upgrade refs: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency); err != nil {
-		return fmt.Errorf("failed to pin upgraded refs: %w", err)
+	if c.flagPin {
+		if err := parser.Pin(ctx, res, par, files.nodes(), c.flagConcurrency); err != nil {
+			return fmt.Errorf("failed to pin upgraded refs: %w", err)
+		}
 	}
 
 	for _, f := range files {

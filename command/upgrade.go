@@ -56,7 +56,7 @@ func (c *UpgradeCommand) Flags() *flag.FlagSet {
 		"maximum number of concurrent resolutions")
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
-	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions (defaults to true)")
+	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions")
 
 	return f
 }

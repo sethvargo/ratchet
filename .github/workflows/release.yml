@@ -15,23 +15,23 @@ jobs:
   release:
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: 'docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3' # ratchet:docker/setup-qemu-action@v3
+      - uses: 'docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf' # ratchet:docker/setup-qemu-action@v3
 
-      - uses: 'actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332' # ratchet:actions/checkout@v4
+      - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: 'actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7' # ratchet:actions/setup-go@v5
+      - uses: 'actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed' # ratchet:actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
 
-      - uses: 'docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446' # ratchet:docker/login-action@v3
+      - uses: 'docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567' # ratchet:docker/login-action@v3
         with:
           registry: 'ghcr.io'
           username: '${{ github.actor }}'
           password: '${{ secrets.GITHUB_TOKEN }}'
 
-      - uses: 'goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200' # ratchet:goreleaser/goreleaser-action@v6
+      - uses: 'goreleaser/goreleaser-action@9ed2f89a662bf1735a48bc8557fd212fa902bebf' # ratchet:goreleaser/goreleaser-action@v6
         id: 'goreleaser'
         with:
           version: '~> 2'
@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
 
-      - uses: 'actions/attest-build-provenance@bdd51370e0416ac948727f861e03c2f05d32d78e' # ratchet:actions/attest-build-provenance@v1
+      - uses: 'actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018' # ratchet:actions/attest-build-provenance@v1
         with:
           subject-path: |-
             dist/*.tar.gz

@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,12 @@ import (
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
 	"github.com/sethvargo/ratchet/internal/version"
+)
+
+const (
+	// defaultIndent is used to indent when yaml marshalling into string when
+	// indentation cannot otherwise be determined.
+	defaultIndent = 2
 )
 
 // Commands is the main list of all commands.
@@ -92,11 +99,11 @@ func extractCommandAndArgs(args []string) (string, []string) {
 }
 
 // marshalYAML encodes the yaml node into the given writer.
-func marshalYAML(m *yaml.Node) (string, error) {
+func marshalYAML(m *yaml.Node, indent int) (string, error) {
 	var b bytes.Buffer
 
 	enc := yaml.NewEncoder(&b)
-	enc.SetIndent(2)
+	enc.SetIndent(indent)
 	enc.SetAssumeBlockAsLiteral(true)
 	if err := enc.Encode(m); err != nil {
 		return "", fmt.Errorf("failed to encode yaml: %w", err)
@@ -115,7 +122,7 @@ type loadResult struct {
 }
 
 func (r *loadResult) marshalYAML() (string, error) {
-	contents, err := marshalYAML(r.node)
+	contents, err := marshalYAML(r.node, computeMedianIndent(r.contents))
 	if err != nil {
 		return "", err
 	}
@@ -165,7 +172,8 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 
 		// Remarshal the content before any modification so we can compute the
 		// places where a newline should be inserted post-rendering.
-		remarshaled, err := marshalYAML(&node)
+		// Note: Indentation does not matter when computing newline targets.
+		remarshaled, err := marshalYAML(&node, defaultIndent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to remarshal yaml for %s: %w", pth, err)
 		}
@@ -228,4 +236,63 @@ func computeNewlineTargets(before, after string) []int {
 	}
 
 	return result
+}
+
+// computeMedianIndent determines the median indent of the given string yaml content.
+func computeMedianIndent(yamlContent string) int {
+	lines := strings.Split(yamlContent, "\n")
+	allSpaces := []int{}
+	lastLine := 0
+	for i := 1; i < len(lines); i++ {
+		lineBefore := lines[lastLine]
+		lineAfter := lines[i]
+		// Skip empty lines
+		if strings.TrimSpace(lineBefore) == "" {
+			lastLine++
+			continue
+		}
+		// Do not compare empty lines.
+		if strings.TrimSpace(lineAfter) == "" {
+			continue
+		}
+		l0 := leadingSpaces(lineBefore)
+		l1 := leadingSpaces(lineAfter)
+		lastLine = i
+		// Skip no change in indent.
+		if l0 == l1 {
+			continue
+		}
+		allSpaces = append(allSpaces, absDiffInt(l1, l0))
+	}
+	sort.Sort(sort.IntSlice(allSpaces))
+	if len(allSpaces) == 0 {
+		return defaultIndent
+	}
+	if len(allSpaces)%2 == 0 {
+		// Normally the median for an even number of items would be the average
+		// of the two numbers in the middle. Instead we pick the first of 2
+		// values so that we end up with a reasonable indent.
+		return allSpaces[(len(allSpaces)/2)-1]
+	}
+	return allSpaces[len(allSpaces)/2]
+}
+
+func leadingSpaces(v string) int {
+	cnt := 0
+	for _, c := range v {
+		if c == ' ' {
+			cnt++
+		} else {
+			return cnt
+		}
+	}
+	return cnt
+}
+
+func absDiffInt(v1, v2 int) int {
+	if v1 > v2 {
+		return v1 - v2
+	} else {
+		return v2 - v1
+	}
 }

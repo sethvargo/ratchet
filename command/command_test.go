@@ -196,6 +196,22 @@ test-code-job1:
 `,
 			want: []int{6},
 		},
+		{
+			name: "has_indent_of_4",
+			yaml: `this:
+    is: |-
+        a multiline
+
+        string that
+        spans lines
+
+    that:
+        has: |-
+            other multline
+            literal scalars
+`,
+			want: []int{6},
+		},
 	}
 
 	for _, tc := range cases {

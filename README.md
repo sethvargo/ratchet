@@ -254,10 +254,6 @@ only applies to the line on which it appears.
 
 ## Known issues
 
--   Indentation is always set to 2 spaces. The upstream YAML library does not
-    capture pre-parsing indentation. Thus, all files will be saved with 2 spaces
-    for indentation.
-
 -   Does not support resolving values in anchors or aliases. This is technically
     possible, but most CI systems also don't support these advanced YAML
     features.

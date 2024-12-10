@@ -258,7 +258,10 @@ func processMultilineNodes(node *yaml.Node) {
 
 	// Check if the node is a scalar and contains newlines
 	if node.Kind == yaml.ScalarNode && strings.Contains(node.Value, "\n") {
-		node.Style = yaml.LiteralStyle // Use '|' for block scalars
+		if node.Style != yaml.FoldedStyle && node.Style != yaml.LiteralStyle {
+			// Default to LiteralStyle if no style is set, but preserve existing style
+			node.Style = yaml.LiteralStyle
+		}
 	}
 
 	// Recursively process child nodes if applicable

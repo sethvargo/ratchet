@@ -115,6 +115,9 @@ type loadResult struct {
 }
 
 func (r *loadResult) marshalYAML() (string, error) {
+	// Process the node tree to ensure multiline strings use LiteralStyle
+	processMultilineNodes(r.node)
+
 	contents, err := marshalYAML(r.node)
 	if err != nil {
 		return "", err
@@ -156,8 +159,14 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 			return nil, fmt.Errorf("failed to read file %s: %w", pth, err)
 		}
 
+		// Preprocess the YAML content
+		cleanedContents, err := preprocessYAML(contents)
+		if err != nil {
+			return nil, fmt.Errorf("failed to preprocess YAML content for %s: %w", pth, err)
+		}
+
 		var node yaml.Node
-		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec := yaml.NewDecoder(bytes.NewReader(cleanedContents))
 		dec.SetScanBlockScalarAsLiteral(true)
 		if err := dec.Decode(&node); err != nil {
 			return nil, fmt.Errorf("failed to parse yaml for %s: %w", pth, err)
@@ -228,4 +237,35 @@ func computeNewlineTargets(before, after string) []int {
 	}
 
 	return result
+}
+
+func preprocessYAML(content []byte) ([]byte, error) {
+	var cleaned []string
+	lines := strings.Split(string(content), "\n")
+
+	for _, line := range lines {
+		cleanedLine := strings.TrimRight(line, " \t")
+		cleaned = append(cleaned, cleanedLine)
+	}
+
+	return []byte(strings.Join(cleaned, "\n")), nil
+}
+
+func processMultilineNodes(node *yaml.Node) {
+	if node == nil {
+		return
+	}
+
+	// Check if the node is a scalar and contains newlines
+	if node.Kind == yaml.ScalarNode && strings.Contains(node.Value, "\n") {
+		if node.Style != yaml.FoldedStyle && node.Style != yaml.LiteralStyle {
+			// Default to LiteralStyle if no style is set, but preserve existing style
+			node.Style = yaml.LiteralStyle
+		}
+	}
+
+	// Recursively process child nodes if applicable
+	for _, child := range node.Content {
+		processMultilineNodes(child)
+	}
 }

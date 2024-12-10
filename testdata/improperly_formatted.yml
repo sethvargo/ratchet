@@ -1,0 +1,14 @@
+name: "Improper Formatting Test"
+description: "Test for improper formatting"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Execute Test
+      run: |
+        echo "Starting tests..."      
+        
+        echo "Running test suite..."  
+        npm test        
+
+        echo "Tests complete."      

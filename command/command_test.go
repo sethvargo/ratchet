@@ -15,19 +15,20 @@ func Test_loadYAMLFiles(t *testing.T) {
 	fsys := os.DirFS("../testdata")
 
 	cases := map[string]string{
-		"a.yml":                   "a.golden.yml",
-		"b.yml":                   "b.golden.yml",
-		"c.yml":                   "",
-		"circleci.yml":            "",
-		"cloudbuild.yml":          "",
-		"docker.yml":              "",
-		"drone.yml":               "",
-		"github-crazy-indent.yml": "github.yml",
-		"github-issue-80.yml":     "",
-		"github.yml":              "",
-		"gitlabci.yml":            "",
-		"no-trailing-newline.yml": "no-trailing-newline.golden.yml",
-		"tekton.yml":              "",
+		"a.yml":                    "a.golden.yml",
+		"b.yml":                    "b.golden.yml",
+		"c.yml":                    "",
+		"circleci.yml":             "",
+		"cloudbuild.yml":           "",
+		"docker.yml":               "",
+		"drone.yml":                "",
+		"github-crazy-indent.yml":  "github.yml",
+		"github-issue-80.yml":      "",
+		"github.yml":               "",
+		"gitlabci.yml":             "",
+		"improperly_formatted.yml": "improperly_formatted.golden.yml",
+		"no-trailing-newline.yml":  "no-trailing-newline.golden.yml",
+		"tekton.yml":               "",
 	}
 
 	for input, expected := range cases {

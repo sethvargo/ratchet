@@ -159,8 +159,14 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 			return nil, fmt.Errorf("failed to read file %s: %w", pth, err)
 		}
 
+		// Preprocess the YAML content
+		cleanedContents, err := preprocessYAML(contents)
+		if err != nil {
+			return nil, fmt.Errorf("failed to preprocess YAML content for %s: %w", pth, err)
+		}
+
 		var node yaml.Node
-		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec := yaml.NewDecoder(bytes.NewReader(cleanedContents))
 		dec.SetScanBlockScalarAsLiteral(true)
 		if err := dec.Decode(&node); err != nil {
 			return nil, fmt.Errorf("failed to parse yaml for %s: %w", pth, err)
@@ -231,6 +237,18 @@ func computeNewlineTargets(before, after string) []int {
 	}
 
 	return result
+}
+
+func preprocessYAML(content []byte) ([]byte, error) {
+	var cleaned []string
+	lines := strings.Split(string(content), "\n")
+
+	for _, line := range lines {
+		cleanedLine := strings.TrimRight(line, " \t")
+		cleaned = append(cleaned, cleanedLine)
+	}
+
+	return []byte(strings.Join(cleaned, "\n")), nil
 }
 
 func processMultilineNodes(node *yaml.Node) {

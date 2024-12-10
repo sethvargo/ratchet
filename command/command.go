@@ -115,6 +115,9 @@ type loadResult struct {
 }
 
 func (r *loadResult) marshalYAML() (string, error) {
+	// Process the node tree to ensure multiline strings use LiteralStyle
+	processMultilineNodes(r.node)
+
 	contents, err := marshalYAML(r.node)
 	if err != nil {
 		return "", err
@@ -228,4 +231,20 @@ func computeNewlineTargets(before, after string) []int {
 	}
 
 	return result
+}
+
+func processMultilineNodes(node *yaml.Node) {
+	if node == nil {
+		return
+	}
+
+	// Check if the node is a scalar and contains newlines
+	if node.Kind == yaml.ScalarNode && strings.Contains(node.Value, "\n") {
+		node.Style = yaml.LiteralStyle // Use '|' for block scalars
+	}
+
+	// Recursively process child nodes if applicable
+	for _, child := range node.Content {
+		processMultilineNodes(child)
+	}
 }

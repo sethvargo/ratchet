@@ -88,11 +88,13 @@ docker_manifests:
       - 'ghcr.io/sethvargo/ratchet:latest-arm64'
 
 archives:
-  - format: 'tar.gz'
+  - formats:
+      - 'tar.gz'
     name_template: 'ratchet_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     format_overrides:
       - goos: 'windows'
-        format: 'zip'
+        formats:
+          - 'zip'
 
 checksum:
   name_template: 'ratchet_{{ .Version }}_SHA512SUMS'

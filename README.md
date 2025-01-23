@@ -262,9 +262,10 @@ only applies to the line on which it appears.
     possible, but most CI systems also don't support these advanced YAML
     features.
 
-    Similarly, Ratchet does not support matrix-style expansion, since those
+    Similarly, Ratchet does not support expansion or inteprolation, since those
     values cannot be guaranteed to be known at compile time. For example,
-    Ratchet will error on the following GitHub Actions workflow:
+    Ratchet will ignore the following `${{ }}` reference in a GitHub Actions
+    workflow:
 
     ```yaml
     jobs:

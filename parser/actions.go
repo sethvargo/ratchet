@@ -82,6 +82,12 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 							for k, property := range step.Content {
 								if property.Value == "uses" {
 									uses := step.Content[k+1]
+									// Ignore interpolations, since we cannot resolve most of
+									// their values.
+									if strings.Contains(uses.Value, "${{") {
+										continue
+									}
+
 									// Only include references to remote workflows. This could be
 									// a local workflow, which should not be pinned.
 									switch {
@@ -119,6 +125,13 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 							for k, property := range containerMap.Content {
 								if property.Value == "image" {
 									image := containerMap.Content[k+1]
+
+									// Ignore interpolations, since we cannot resolve most of
+									// their values.
+									if strings.Contains(image.Value, "${{") {
+										continue
+									}
+
 									ref := resolver.NormalizeContainerRef(image.Value)
 									refs.Add(ref, image)
 									break
@@ -138,6 +151,13 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 								for k, property := range subMap.Content {
 									if property.Value == "image" {
 										image := subMap.Content[k+1]
+
+										// Ignore interpolations, since we cannot resolve most of
+										// their values.
+										if strings.Contains(image.Value, "${{") {
+											continue
+										}
+
 										ref := resolver.NormalizeContainerRef(image.Value)
 										refs.Add(ref, image)
 										break
@@ -157,6 +177,13 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 								for k, property := range step.Content {
 									if property.Value == "uses" {
 										uses := step.Content[k+1]
+
+										// Ignore interpolations, since we cannot resolve most of
+										// their values.
+										if strings.Contains(uses.Value, "${{") {
+											continue
+										}
+
 										// Only include references to remote workflows. This could be
 										// a local workflow, which should not be pinned.
 										switch {
@@ -175,6 +202,12 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 						// Top-level uses, likely for a reusable workflow.
 						if sub.Value == "uses" {
 							uses := jobMap.Content[j+1]
+
+							// Ignore interpolations, since we cannot resolve most of
+							// their values.
+							if strings.Contains(uses.Value, "${{") {
+								continue
+							}
 
 							// Only include references to remote workflows. This could be a
 							// local workflow, which should not be pinned.

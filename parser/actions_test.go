@@ -91,6 +91,19 @@ runs:
 				"container://ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724",
 			},
 		},
+		{
+			name: "ignores_interpolated",
+			in: `
+jobs:
+  my_job:
+    container:
+      image: 'ghcr.io/${{ github.repository }}/container:1.2.3'
+    steps:
+      - uses: 'actions/${{ github.sha }}'
+
+`,
+			exp: []string{},
+		},
 	}
 
 	for _, tc := range cases {

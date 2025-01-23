@@ -15,13 +15,13 @@ jobs:
   release:
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: 'docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf' # ratchet:docker/setup-qemu-action@v3
+      - uses: 'docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a' # ratchet:docker/setup-qemu-action@v3
 
       - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: 'actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed' # ratchet:actions/setup-go@v5
+      - uses: 'actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34' # ratchet:actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
 
@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
 
-      - uses: 'actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018' # ratchet:actions/attest-build-provenance@v1
+      - uses: 'actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4' # ratchet:actions/attest-build-provenance@v2
         with:
           subject-path: |-
             dist/*.tar.gz

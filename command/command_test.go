@@ -24,6 +24,7 @@ func Test_loadYAMLFiles(t *testing.T) {
 		"drone.yml":               "",
 		"github-crazy-indent.yml": "github.yml",
 		"github-issue-80.yml":     "",
+		"github-subdirectory.yml": "",
 		"github.yml":              "",
 		"gitlabci.yml":            "",
 		"no-trailing-newline.yml": "no-trailing-newline.golden.yml",

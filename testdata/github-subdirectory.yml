@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: 'actions/checkout@v3'
 
-    - uses: 'actions/aws/ec2@main'
+    - uses: 'abcxyz/github-token-minter/.github/actions/mint-token@268f5db75d6ce3da57eb82ee513aa0fe7231d89b' # ratchet:abcxyz/github-token-minter@v0.0.24
 
     - uses: 'docker://ubuntu:20.04'
       with:

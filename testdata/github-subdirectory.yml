@@ -1,0 +1,32 @@
+jobs:
+  my_job:
+    runs-on: 'ubuntu-latest'
+
+    container:
+      image: 'ubuntu:20.04'
+
+    services:
+      nginx:
+        image: 'nginx:1.21'
+
+    steps:
+    - uses: 'actions/checkout@v3'
+
+    - uses: 'actions/aws/ec2@main'
+
+    - uses: 'docker://ubuntu:20.04'
+      with:
+        uses: '/path/to/user.png'
+        image: '/path/to/image.jpg'
+
+    - runs: |-
+        echo "Hello 😀"
+        if [ "true" == "false" ];
+          echo "NOPE"
+        fi
+
+  other_job:
+    uses: 'my-org/my-repo/.github/workflows/my-workflow.yml@v0'
+
+  final_job:
+    uses: './local/path/to/action'

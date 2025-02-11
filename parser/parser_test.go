@@ -426,6 +426,11 @@ func TestUnpin(t *testing.T) {
 			exp:  `uses: "my/repo@v0" # this is a code comment`,
 		},
 		{
+			name: "uses_comment_retains_path",
+			in:   `uses: "my/repo/.github/actions/my-action@abcd1234" # ratchet:my/repo@v0 this is a code comment`,
+			exp:  `uses: "my/repo/.github/actions/my-action@v0" # this is a code comment`,
+		},
+		{
 			name: "multiple_uses",
 			in: `
 - uses: "my/repo@abcd1234" # ratchet:my/repo@v0 comment

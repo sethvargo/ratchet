@@ -76,6 +76,12 @@ There are a few options for installing ratchet:
     Note this option is community supported and may not be the latest
     available version.
 
+-   Via golang:
+
+    ```sh
+    go install github.com/sethvargo/ratchet@latest
+    ```
+
 -   Compiled from source yourself. Note this option is not supported.
 
 

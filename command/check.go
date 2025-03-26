@@ -15,6 +15,8 @@ const checkCommandDesc = `Check if all versions are pinned`
 const checkCommandHelp = `
 Usage: ratchet check [FILE...]
 
+DEPRECATED: Use the "lint" command instead.
+
 The "check" command checks if all versions are pinned to an absolute version,
 ignoring any versions with the "ratchet:exclude" comment.
 
@@ -33,6 +35,8 @@ type CheckCommand struct {
 	flagParser string
 }
 
+func (c *CheckCommand) Hidden() {}
+
 func (c *CheckCommand) Desc() string {
 	return checkCommandDesc
 }
@@ -50,6 +54,8 @@ func (c *CheckCommand) Flags() *flag.FlagSet {
 }
 
 func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
+	fmt.Fprintf(os.Stderr, "⚠️ DEPRECATED: Use the \"lint\" command instead.\n\n")
+
 	args, err := parseFlags(c.Flags(), originalArgs)
 	if err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)

@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
+	"github.com/sethvargo/ratchet/linter"
 	"github.com/sethvargo/ratchet/resolver"
 	"golang.org/x/sync/semaphore"
 )
@@ -36,6 +38,10 @@ var parserFactory = map[string]func() Parser{
 	"tekton":     func() Parser { return new(Tekton) },
 }
 
+var parsers = sync.OnceValue(func() []string {
+	return slices.Sorted(maps.Keys(parserFactory))
+})
+
 // For returns the parser that corresponds to the given name.
 func For(ctx context.Context, name string) (Parser, error) {
 	typ := strings.ToLower(strings.TrimSpace(name))
@@ -48,55 +54,71 @@ func For(ctx context.Context, name string) (Parser, error) {
 
 // List returns the list of parsers.
 func List() []string {
-	cp := make([]string, 0, len(parserFactory))
-	for key := range parserFactory {
-		cp = append(cp, key)
-	}
-	sort.Strings(cp)
-	return cp
+	return parsers()
 }
 
 // Check iterates over all references in the yaml and checks if they are pinned
 // to an absolute reference. It ignores "ratchet:exclude" nodes from the lookup.
 func Check(ctx context.Context, parser Parser, nodes map[string]*yaml.Node) error {
-	refsList, err := parser.Parse(nodes)
+	unpinned := make(map[string]struct{}, 8)
+
+	violations, err := Lint(ctx, parser, nodes)
 	if err != nil {
 		return err
 	}
-	refs := refsList.All()
 
-	var unpinned []string
-	for ref, nodes := range refs {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		ref = resolver.DenormalizeRef(ref)
-
-		// Pre-filter any nodes that should be excluded from the lookup.
-		hasAny := false
-		for _, node := range nodes {
-			if !shouldExclude(node.LineComment) {
-				hasAny = true
-				break
-			}
-		}
-		if !hasAny {
-			continue
-		}
-
-		if !isAbsolute(ref) {
-			unpinned = append(unpinned, ref)
-		}
+	for _, violation := range violations {
+		unpinned[violation.Contents] = struct{}{}
 	}
 
 	if l := len(unpinned); l > 0 {
-		return fmt.Errorf("found %d unpinned refs: %q", l, unpinned)
+		list := slices.Sorted(maps.Keys(unpinned))
+		return fmt.Errorf("found %d unpinned refs: %q", l, list)
 	}
 
 	return nil
+}
+
+// Lint iterates over all references in the yaml and checks if they are pinned
+// to an absolute reference. It returns a structure of violations.
+//
+// It ignores "ratchet:exclude" nodes from the lookup.
+func Lint(ctx context.Context, parser Parser, nodes map[string]*yaml.Node) ([]*linter.Violation, error) {
+	var violations []*linter.Violation
+
+	// This is a little bit weird, but we parse files individually so we can know
+	// which file we're operating on. Other functions intentionally munge
+	// everything together to mminimze API calls, but we need to retain the
+	// information here for reporting.
+	for filename, document := range nodes {
+		refsList, err := parser.Parse(map[string]*yaml.Node{
+			filename: document,
+		})
+		if err != nil {
+			return nil, err
+		}
+		refs := refsList.All()
+
+		for _, nodes := range refs {
+			for _, node := range nodes {
+				if shouldExclude(node.LineComment) {
+					continue
+				}
+
+				if !isAbsolute(node.Value) {
+					violations = append(violations, &linter.Violation{
+						Filename: filename,
+						Contents: node.Value,
+						Line:     node.Line,
+						Column:   node.Column,
+					})
+				}
+			}
+		}
+
+	}
+
+	return violations, nil
 }
 
 // Pin extracts all references from the given YAML document and resolves them

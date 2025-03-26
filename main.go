@@ -17,7 +17,9 @@ func main() {
 
 	if err := realMain(ctx); err != nil {
 		done()
-		fmt.Fprintln(os.Stderr, err.Error())
+		if msg := err.Error(); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
 		os.Exit(1)
 	}
 }

@@ -20,7 +20,7 @@ func TestCircleCI_Parse(t *testing.T) {
 			in: `
 executors:
 `,
-			exp: []string{},
+			exp: nil,
 		},
 		{
 			name: "executor",

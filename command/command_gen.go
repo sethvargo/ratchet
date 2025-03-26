@@ -4,7 +4,7 @@ package command
 
 const topLevelHelp = `Usage: ratchet COMMAND
 
-  check      Check if all versions are pinned
+  lint       Lint and report unpinned versions
   pin        Resolve and pin all versions
   unpin      Revert pinned versions to their unpinned values
   update     Update all pinned versions to the latest value

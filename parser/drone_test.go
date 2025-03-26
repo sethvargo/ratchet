@@ -20,7 +20,7 @@ func TestDrone_Parse(t *testing.T) {
 			in: `
 jobs:
 `,
-			exp: []string{},
+			exp: nil,
 		},
 		{
 			name: "steps",

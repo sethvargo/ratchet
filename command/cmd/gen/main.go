@@ -47,7 +47,7 @@ func realMain() error {
 
 func folderRoot() string {
 	_, filename, _, _ := runtime.Caller(0)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		filename = path.Dir(filename)
 	}
 	return filename

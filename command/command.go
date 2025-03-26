@@ -24,6 +24,7 @@ import (
 // Commands is the main list of all commands.
 var Commands = map[string]Command{
 	"check":   &CheckCommand{},
+	"lint":    &LintCommand{},
 	"pin":     &PinCommand{},
 	"unpin":   &UnpinCommand{},
 	"update":  &UpdateCommand{},

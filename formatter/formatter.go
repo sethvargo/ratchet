@@ -81,7 +81,7 @@ func formatHuman(w io.Writer, violations []*Violation) error {
 	var merr error
 
 	for _, v := range violations {
-		if _, err := fmt.Fprintf(w, "%s:%d:%d: Upinned reference %q\n",
+		if _, err := fmt.Fprintf(w, "%s:%d:%d: Unpinned reference %q\n",
 			v.Filename, v.Line, v.Column, v.Contents); err != nil {
 			merr = errors.Join(merr, err)
 		}

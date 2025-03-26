@@ -31,25 +31,23 @@ func Test_loadYAMLFiles(t *testing.T) {
 	}
 
 	for input, expected := range cases {
-		inputFilename, expectedFilename := input, expected
-
-		t.Run(inputFilename, func(t *testing.T) {
+		t.Run(input, func(t *testing.T) {
 			t.Parallel()
 
-			files, err := loadYAMLFiles(fsys, []string{inputFilename})
+			files, err := loadYAMLFiles(fsys, []string{input})
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			got, err := files[0].marshalYAML()
+			got, err := files[input].marshalYAML()
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if expectedFilename == "" {
-				expectedFilename = inputFilename
+			if expected == "" {
+				expected = input
 			}
-			want, err := fsys.(fs.ReadFileFS).ReadFile(expectedFilename)
+			want, err := fsys.(fs.ReadFileFS).ReadFile(expected)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -115,8 +113,6 @@ func Test_computeNewlineTargets_simple(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -199,8 +195,6 @@ test-code-job1:
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -215,7 +209,7 @@ test-code-job1:
 				t.Fatal(err)
 			}
 
-			f := r[0]
+			f := r["file.yml"]
 			if diff := cmp.Diff(f.newlines, tc.want); diff != "" {
 				t.Errorf("unexpected newlines diff (+got, -want):\n%s", diff)
 			}

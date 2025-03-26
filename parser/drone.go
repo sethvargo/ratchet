@@ -17,12 +17,12 @@ func (d *Drone) DenormalizeRef(ref string) string {
 }
 
 // Parse pulls the Drone Ci refs from the documents.
-func (d *Drone) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (d *Drone) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	for i, node := range nodes {
+	for pth, node := range nodes {
 		if err := d.parseOne(&refs, node); err != nil {
-			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+			return nil, fmt.Errorf("failed to parse %s: %w", pth, err)
 		}
 	}
 

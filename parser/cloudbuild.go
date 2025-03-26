@@ -17,12 +17,12 @@ func (c *CloudBuild) DenormalizeRef(ref string) string {
 }
 
 // Parse pulls the Google Cloud Build refs from the documents.
-func (c *CloudBuild) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (c *CloudBuild) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	for i, node := range nodes {
+	for pth, node := range nodes {
 		if err := c.parseOne(&refs, node); err != nil {
-			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+			return nil, fmt.Errorf("failed to parse %s: %w", pth, err)
 		}
 	}
 

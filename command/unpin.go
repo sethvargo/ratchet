@@ -5,10 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/parser"
 )
 
@@ -62,38 +60,21 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to parse flags: %w", err)
 	}
 
-	fsys := os.DirFS(".")
-
-	files, err := loadYAMLFiles(fsys, args)
+	loadResult, err := loadYAMLFiles(os.DirFS("."), args)
 	if err != nil {
 		return err
 	}
 
-	if len(files) > 1 && c.flagOut != "" && !strings.HasSuffix(c.flagOut, "/") {
+	if len(loadResult) > 1 && c.flagOut != "" && !strings.HasSuffix(c.flagOut, "/") {
 		return fmt.Errorf("-out must be a directory when pinning multiple files")
 	}
 
-	if err := parser.Unpin(ctx, files.nodes()); err != nil {
+	if err := parser.Unpin(ctx, loadResult.nodes()); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	for _, f := range files {
-		outFile := c.flagOut
-		if strings.HasSuffix(c.flagOut, "/") {
-			outFile = filepath.Join(c.flagOut, f.path)
-		}
-		if outFile == "" {
-			outFile = f.path
-		}
-
-		final, err := f.marshalYAML()
-		if err != nil {
-			return fmt.Errorf("failed to marshal yaml for %s: %w", f.path, err)
-		}
-
-		if err := atomic.Write(f.path, outFile, strings.NewReader(final)); err != nil {
-			return fmt.Errorf("failed to save file %s: %w", outFile, err)
-		}
+	if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
+		return fmt.Errorf("failed to save files: %w", err)
 	}
 
 	return nil

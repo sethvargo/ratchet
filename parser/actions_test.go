@@ -20,7 +20,7 @@ func TestActions_Parse(t *testing.T) {
 			in: `
 jobs:
 `,
-			exp: []string{},
+			exp: nil,
 		},
 		{
 			name: "uses",
@@ -102,7 +102,7 @@ jobs:
       - uses: 'actions/${{ github.sha }}'
 
 `,
-			exp: []string{},
+			exp: nil,
 		},
 	}
 
@@ -120,7 +120,7 @@ jobs:
 			}
 
 			if got, want := refs.Refs(), tc.exp; !reflect.DeepEqual(got, want) {
-				t.Errorf("expected %q to be %q", got, want)
+				t.Errorf("expected %#v to be %#v", got, want)
 			}
 		})
 	}

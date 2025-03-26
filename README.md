@@ -167,13 +167,13 @@ ratchet upgrade -out workflow-compiled.yml workflow.yml
 > [!NOTE]
 > Performs an `update` if the constraint ref is for a branch.
 
-#### Check
+#### Lint
 
-The `check` command checks if all versions are pinned, exiting with a non-zero
-error code when entries are not pinned:
+The `lint` command reports if all versions are pinned, printing any violations,
+and exiting with a non-zero error code when entries are not pinned:
 
 ```shell
-ratchet check workflow.yml
+ratchet lint workflow.yml
 ```
 
 ## Examples

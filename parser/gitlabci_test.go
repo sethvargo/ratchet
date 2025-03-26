@@ -31,7 +31,7 @@ workflow:
 variables:
   VAR1: example
 `,
-			exp: []string{},
+			exp: nil,
 		},
 		{
 			name: "wrong_image_reference",

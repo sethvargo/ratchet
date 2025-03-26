@@ -1,7 +1,8 @@
 package parser
 
 import (
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 
@@ -17,29 +18,17 @@ type RefsList struct {
 
 func (l *RefsList) Add(ref string, m *yaml.Node) {
 	l.once.Do(l.init)
-
 	l.refs[ref] = append(l.refs[ref], m)
 }
 
 func (l *RefsList) Refs() []string {
 	l.once.Do(l.init)
-
-	cp := make([]string, 0, len(l.refs))
-	for k := range l.refs {
-		cp = append(cp, k)
-	}
-	sort.Strings(cp)
-	return cp
+	return slices.Sorted(maps.Keys(l.refs))
 }
 
 func (l *RefsList) All() map[string][]*yaml.Node {
 	l.once.Do(l.init)
-
-	cp := make(map[string][]*yaml.Node, len(l.refs))
-	for k, v := range l.refs {
-		cp[k] = append(cp[k], v...)
-	}
-	return cp
+	return maps.Clone(l.refs)
 }
 
 func (l *RefsList) init() {

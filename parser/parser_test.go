@@ -61,14 +61,14 @@ jobs:
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := helperStringToYAML(t, tc.in)
+			nodes := map[string]*yaml.Node{
+				"test.yml": helperStringToYAML(t, tc.in),
+			}
 
-			if err := Check(ctx, par, []*yaml.Node{m}); err != nil {
+			if err := Check(ctx, par, nodes); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {
@@ -209,14 +209,16 @@ jobs:
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Pin(ctx, res, par, []*yaml.Node{m}, 2); err != nil {
+			nodes := map[string]*yaml.Node{
+				"test.yml": m,
+			}
+
+			if err := Pin(ctx, res, par, nodes, 2); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {
@@ -372,14 +374,16 @@ jobs:
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Upgrade(ctx, res, par, []*yaml.Node{m}, 2); err != nil {
+			nodes := map[string]*yaml.Node{
+				"test.yml": m,
+			}
+
+			if err := Upgrade(ctx, res, par, nodes, 2); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				} else {
@@ -446,14 +450,16 @@ func TestUnpin(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			m := helperStringToYAML(t, tc.in)
 
-			if err := Unpin(ctx, []*yaml.Node{m}); err != nil {
+			nodes := map[string]*yaml.Node{
+				"test.yml": m,
+			}
+
+			if err := Unpin(ctx, nodes); err != nil {
 				t.Fatal(err)
 			}
 
@@ -500,8 +506,6 @@ func TestAppendOriginalToComment(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -567,8 +571,6 @@ func TestExtractOriginalFromComment(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -60,12 +60,10 @@ func (c *CheckCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	fsys := os.DirFS(".")
-
-	files, err := loadYAMLFiles(fsys, args)
+	loadResult, err := loadYAMLFiles(os.DirFS("."), args)
 	if err != nil {
 		return err
 	}
 
-	return parser.Check(ctx, par, files.nodes())
+	return parser.Check(ctx, par, loadResult.nodes())
 }

@@ -19,12 +19,12 @@ func (c *CircleCI) DenormalizeRef(ref string) string {
 // Parse pulls the CircleCI refs from the documents. Unfortunately it does not
 // process "orbs" because there is no documented API for resolving orbs to an
 // absolute version.
-func (c *CircleCI) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (c *CircleCI) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	for i, node := range nodes {
+	for pth, node := range nodes {
 		if err := c.parseOne(&refs, node); err != nil {
-			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+			return nil, fmt.Errorf("failed to parse %s: %w", pth, err)
 		}
 	}
 

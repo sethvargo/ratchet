@@ -107,14 +107,14 @@ jobs:
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := helperStringToYAML(t, tc.in)
+			nodes := map[string]*yaml.Node{
+				"test.yml": helperStringToYAML(t, tc.in),
+			}
 
-			refs, err := new(Actions).Parse([]*yaml.Node{m})
+			refs, err := new(Actions).Parse(nodes)
 			if err != nil {
 				t.Fatal(err)
 			}

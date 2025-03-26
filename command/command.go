@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
+	"github.com/sethvargo/ratchet/internal/atomic"
 	"github.com/sethvargo/ratchet/internal/version"
 )
 
@@ -108,7 +110,6 @@ func marshalYAML(m *yaml.Node) (string, error) {
 }
 
 type loadResult struct {
-	path     string
 	node     *yaml.Node
 	contents string
 	newlines []int
@@ -136,18 +137,18 @@ func (r *loadResult) marshalYAML() (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-type loadResults []*loadResult
+type loadResults map[string]*loadResult
 
-func (r loadResults) nodes() []*yaml.Node {
-	n := make([]*yaml.Node, 0, len(r))
-	for _, v := range r {
-		n = append(n, v.node)
+func (r loadResults) nodes() map[string]*yaml.Node {
+	m := make(map[string]*yaml.Node, len(r))
+	for name, lr := range r {
+		m[name] = lr.node
 	}
-	return n
+	return m
 }
 
 func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
-	r := make(loadResults, 0, len(paths))
+	r := make(loadResults, len(paths))
 
 	for _, pth := range paths {
 		pth = strings.TrimPrefix(pth, "./")
@@ -172,15 +173,45 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 
 		newlines := computeNewlineTargets(string(contents), remarshaled)
 
-		r = append(r, &loadResult{
-			path:     pth,
+		if _, ok := r[pth]; ok {
+			return nil, fmt.Errorf("internal error: entry already exists for %q: %v", pth, r)
+		}
+
+		r[pth] = &loadResult{
 			node:     &node,
 			contents: string(contents),
 			newlines: newlines,
-		})
+		}
 	}
 
 	return r, nil
+}
+
+func (r loadResults) writeYAMLFiles(outPath string) error {
+	var merr error
+
+	for pth, f := range r {
+		outFile := outPath
+		if strings.HasSuffix(outPath, "/") {
+			outFile = filepath.Join(outPath, pth)
+		}
+		if outFile == "" {
+			outFile = pth
+		}
+
+		final, err := f.marshalYAML()
+		if err != nil {
+			merr = errors.Join(merr, fmt.Errorf("failed to marshal yaml for %s: %w", pth, err))
+			continue
+		}
+
+		if err := atomic.Write(pth, outFile, strings.NewReader(final)); err != nil {
+			merr = errors.Join(merr, fmt.Errorf("failed to save file %s: %w", outFile, err))
+			continue
+		}
+	}
+
+	return merr
 }
 
 func computeNewlineTargets(before, after string) []int {

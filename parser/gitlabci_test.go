@@ -139,14 +139,14 @@ job2:
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := helperStringToYAML(t, tc.in)
+			nodes := map[string]*yaml.Node{
+				"test.yml": helperStringToYAML(t, tc.in),
+			}
 
-			refs, err := new(GitLabCI).Parse([]*yaml.Node{m})
+			refs, err := new(GitLabCI).Parse(nodes)
 			if err != nil {
 				fmt.Println(refs)
 				t.Fatal(err)

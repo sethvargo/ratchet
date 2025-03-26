@@ -56,9 +56,19 @@ func folderRoot() string {
 func buildTopLevelHelp() string {
 	var w strings.Builder
 
+	commands := make(map[string]command.Command, len(command.Commands))
+	for name, command := range command.Commands {
+		// Ignore hidden commands
+		if _, ok := command.(interface{ Hidden() }); ok {
+			continue
+		}
+
+		commands[name] = command
+	}
+
 	longest := 0
-	names := make([]string, 0, len(command.Commands))
-	for name := range command.Commands {
+	names := make([]string, 0, len(commands))
+	for name := range commands {
 		names = append(names, name)
 		if l := len(name); l > longest {
 			longest = l

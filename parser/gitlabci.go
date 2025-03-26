@@ -18,12 +18,12 @@ func (c *GitLabCI) DenormalizeRef(ref string) string {
 
 // Parse pulls the image references from GitLab CI configuration files. It does
 // not support references with variables.
-func (c *GitLabCI) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (c *GitLabCI) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	for i, node := range nodes {
+	for pth, node := range nodes {
 		if err := c.parseOne(&refs, node); err != nil {
-			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+			return nil, fmt.Errorf("failed to parse %s: %w", pth, err)
 		}
 	}
 

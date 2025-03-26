@@ -17,11 +17,11 @@ func (t *Tekton) DenormalizeRef(ref string) string {
 }
 
 // Parse pulls the Tekton Ci refs from the documents.
-func (t *Tekton) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (t *Tekton) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	var refs RefsList
-	for i, node := range nodes {
+	for pth, node := range nodes {
 		if err := t.parseOne(&refs, node); err != nil {
-			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+			return nil, fmt.Errorf("failed to parse %s: %w", pth, err)
 		}
 	}
 

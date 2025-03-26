@@ -23,12 +23,12 @@ func (a *Actions) DenormalizeRef(ref string) string {
 }
 
 // Parse pulls the GitHub Actions refs from the documents.
-func (a *Actions) Parse(nodes []*yaml.Node) (*RefsList, error) {
+func (a *Actions) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	var refs RefsList
 
-	for i, node := range nodes {
+	for pth, node := range nodes {
 		if err := a.parseOne(&refs, node); err != nil {
-			return nil, fmt.Errorf("failed to parse node %d: %w", i, err)
+			return nil, fmt.Errorf("failed to parse %s: %w", pth, err)
 		}
 	}
 

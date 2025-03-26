@@ -24,7 +24,7 @@ const (
 // node.
 type Parser interface {
 	DenormalizeRef(ref string) string
-	Parse(nodes []*yaml.Node) (*RefsList, error)
+	Parse(nodes map[string]*yaml.Node) (*RefsList, error)
 }
 
 var parserFactory = map[string]func() Parser{
@@ -58,7 +58,7 @@ func List() []string {
 
 // Check iterates over all references in the yaml and checks if they are pinned
 // to an absolute reference. It ignores "ratchet:exclude" nodes from the lookup.
-func Check(ctx context.Context, parser Parser, nodes []*yaml.Node) error {
+func Check(ctx context.Context, parser Parser, nodes map[string]*yaml.Node) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func Check(ctx context.Context, parser Parser, nodes []*yaml.Node) error {
 
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
-func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64) error {
+func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[string]*yaml.Node, concurrency int64) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
@@ -172,7 +172,7 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yam
 	return merr
 }
 
-func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes []*yaml.Node, concurrency int64) error {
+func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[string]*yaml.Node, concurrency int64) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
@@ -245,7 +245,15 @@ func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes []
 //
 // This function does not make any outbound network calls and relies solely on
 // information in the document.
-func Unpin(ctx context.Context, nodes []*yaml.Node) error {
+func Unpin(ctx context.Context, files map[string]*yaml.Node) error {
+	nodes := make([]*yaml.Node, 0, len(files))
+	for _, node := range files {
+		nodes = append(nodes, node)
+	}
+	return unpin(ctx, nodes)
+}
+
+func unpin(ctx context.Context, nodes []*yaml.Node) error {
 	for _, node := range nodes {
 		select {
 		case <-ctx.Done():
@@ -260,7 +268,7 @@ func Unpin(ctx context.Context, nodes []*yaml.Node) error {
 			}
 		}
 
-		if err := Unpin(ctx, node.Content); err != nil {
+		if err := unpin(ctx, node.Content); err != nil {
 			return err
 		}
 	}

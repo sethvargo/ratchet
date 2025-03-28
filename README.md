@@ -88,7 +88,7 @@ There are a few options for installing ratchet:
 ## Usage
 
 For more information about available commands and options, run a command with
-`-help` to use detailed usage instructions. (#cli-options).
+`-help` to use detailed usage instructions.
 
 #### Pin
 

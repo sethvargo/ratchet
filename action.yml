@@ -1,0 +1,31 @@
+name: 'Ratchet'
+description: 'Run ratchet lint against the provided configurations.'
+branding:
+  icon: 'shield'
+  color: 'purple'
+inputs:
+  files:
+    description: 'Files to lint'
+    default: '.'
+  version:
+    description: 'Version of ratchet to use'
+    default: 'latest'
+
+runs:
+  using: 'composite'
+  steps:
+    - id: 'download'
+      name: 'Download sethvargo/ratchet'
+      shell: 'bash'
+      env:
+        GH_TOKEN: '${{ github.token }}' # for the gh CLI
+        VERSION: '${{ inputs.version }}'
+      run: '${{ github.action_path }}/scripts/install-github-actions.sh'
+
+    - name: 'Run ratchet lint'
+      shell: 'bash'
+      env:
+        GITHUB_TOKEN: '${{ github.token }}' # for quota and auth
+        RATCHET_FILES: '${{ inputs.files }}'
+      run: |-
+        ${{ steps.download.outputs.binary-path }} lint ${RATCHET_FILES}

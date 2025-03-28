@@ -27,7 +27,7 @@ Docker tags are mutable. This poses a substantial security and reliability risk.
 What you're probably doing:
 
 ```yaml
-uses: 'actions/checkout@v3'
+uses: 'actions/checkout@v4'
 # or
 image: 'ubuntu:20.04'
 ```
@@ -35,7 +35,7 @@ image: 'ubuntu:20.04'
 What you should really be doing:
 
 ```yaml
-uses: 'actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b'
+uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
 # or
 image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724'
 ```
@@ -46,7 +46,7 @@ unpinned references to the latest version that matches their constraint, and
 then keeps a record of the original constraint.
 
 ```yaml
-uses: 'actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b' # ratchet:actions/checkout@v3
+uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
 # or
 image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:ubuntu:20.04
 ```
@@ -189,21 +189,14 @@ jobs:
     runs-on: 'ubuntu-latest'
     name: 'ratchet'
     steps:
-      - uses: 'actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b' # ratchet:actions/checkout@v3
-
-      # Example of pinning:
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:latest'
+      - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
+      - uses: 'sethvargo/ratchet@main' # ratchet:exclude
         with:
-          args: 'pin .github/workflows/my-workflow.yml'
-
-      # Example of checking versions are pinned:
-      - uses: 'docker://ghcr.io/sethvargo/ratchet:latest'
-        with:
-          args: 'check .github/workflows/my-workflow.yml'
+          files: '.github/workflows/*.yml'
 ```
 
-This same pattern can be extended to other CI/CD systems that support
-container-based runtimes. For non-container-based runtimes, download the `ratchet` binary from [GitHub Releases][releases].
+This same pattern can be extended to other CI/CD systems: download the `ratchet`
+binary from [GitHub Releases][releases].
 
 #### Runnable container CLI
 
@@ -241,7 +234,7 @@ being pinned. You can use the `ratchet:exclude` annotation as a line comment and
 ratchet will not process that reference:
 
 ```yaml
-uses: 'actions/checkout@v3' # ratchet:exclude
+uses: 'actions/checkout@v4' # ratchet:exclude
 ```
 
 There **cannot** be any spaces in the exclusion string, and the exclusion string
@@ -254,7 +247,7 @@ only applies to the line on which it appears.
     floating tag or label, such as `actions/checkout@v4` or `ubuntu:22.04`.
 
 -   **Pinned version** - A pinned version is an absolute hashed reference, such
-    as `actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b` or
+    as `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` or
     `ubuntu@sha256:82becede498899ec668628e7cb0ad87b6e1c371cb8a1e597d83a47fac21d6af3`.
 
 

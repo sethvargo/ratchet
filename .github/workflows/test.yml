@@ -39,6 +39,8 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: 'Run tests'
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
         run: |-
           go test \
             -count=1 \

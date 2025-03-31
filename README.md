@@ -63,7 +63,7 @@ There are a few options for installing ratchet:
     ```
 
     Note this option is community supported and may not be the latest
-    available verson.
+    available version.
 
 -   As a single-static binary from the [releases page][releases].
 -   As a container image from the [container registry][containers].
@@ -261,7 +261,7 @@ only applies to the line on which it appears.
     possible, but most CI systems also don't support these advanced YAML
     features.
 
-    Similarly, Ratchet does not support expansion or inteprolation, since those
+    Similarly, Ratchet does not support expansion or interpolation, since those
     values cannot be guaranteed to be known at compile time. For example,
     Ratchet will ignore the following `${{ }}` reference in a GitHub Actions
     workflow:

@@ -60,7 +60,8 @@ func (f FormatterFunc) Format(w io.Writer, v []*Violation) error {
 func formatActions(w io.Writer, violations []*Violation) error {
 	var merr error
 	for _, v := range violations {
-		message := fmt.Sprintf("The reference `%s` is unpinned. Either pin the reference to a SHA or mark the line with `ratchet:exclude`.", v.Contents)
+		message := fmt.Sprintf("%s:%d:%d: The reference `%s` is unpinned. Either pin the reference to a SHA or mark the line with `ratchet:exclude`.",
+			v.Filename, v.Line, v.Column, v.Contents)
 		if _, err := fmt.Fprintf(w, "::error file=%s,line=%d,col=%d,title=Ratchet - Unpinned Reference::%s\n",
 			v.Filename, v.Line, v.Column,
 			message); err != nil {

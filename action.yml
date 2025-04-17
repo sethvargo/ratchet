@@ -29,4 +29,5 @@ runs:
         RATCHET_FILES: '${{ inputs.files }}'
       run: |-
         shopt -s dotglob
+        shopt -s nullglob
         ${{ steps.download.outputs.binary-path }} lint ${RATCHET_FILES}

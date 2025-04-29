@@ -46,5 +46,5 @@ gh --repo sethvargo/ratchet release download "${VERSION}" \
 chmod +x "${BINARY_PATH}"
 
 # Save the result to an output.
-echo "::notice::Downloaded binary to ${BINARY_PATH}"
+echo "::debug::Downloaded binary to ${BINARY_PATH}"
 echo "binary-path=${BINARY_PATH}" >> "${GITHUB_OUTPUT}"

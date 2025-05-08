@@ -152,7 +152,10 @@ func loadYAMLFiles(fsys fs.FS, paths []string) (loadResults, error) {
 	r := make(loadResults, len(paths))
 
 	for _, pth := range paths {
-		pth = strings.TrimPrefix(pth, "./")
+		// Normalize the file path to ensure consistent behavior across different
+		// operating systems. filepath.Clean removes redundant elements, and
+		// filepath.ToSlash converts Windows-style backslashes to slashes.
+		pth = filepath.ToSlash(filepath.Clean(pth))
 		contents, err := fs.ReadFile(fsys, pth)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file %s: %w", pth, err)

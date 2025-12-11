@@ -13,3 +13,24 @@
   types: ["yaml"]
   files: ^\.github/workflows/
   entry: ratchet pin
+- id: ratchet-pin
+  name: Unpin GitHub Actions versions
+  description: Runs ratchet to unpin GitHub Actions workflow files
+  language: golang
+  types: ["yaml"]
+  files: ^\.github/workflows/
+  entry: ratchet unpin
+- id: ratchet-update
+  name: Update GitHub Actions versions
+  description: Runs ratchet to update GitHub Actions workflow files
+  language: golang
+  types: ["yaml"]
+  files: ^\.github/workflows/
+  entry: ratchet update
+- id: ratchet-upgrade
+  name: Upgrade GitHub Actions versions
+  description: Runs ratchet to upgrade GitHub Actions workflow files
+  language: golang
+  types: ["yaml"]
+  files: ^\.github/workflows/
+  entry: ratchet upgrade

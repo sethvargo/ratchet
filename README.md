@@ -224,7 +224,7 @@ repos:
   - repo: https://github.com/sethvargo/ratchet
     rev: v0.11.4
     hooks:
-      - id: ratchet-lint
+      - id: ratchet-pin
 ```
 
 

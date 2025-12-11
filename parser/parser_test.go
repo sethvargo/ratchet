@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
@@ -612,4 +613,242 @@ func helperYAMLToString(tb testing.TB, m *yaml.Node) string {
 	}
 
 	return strings.TrimSpace(b.String())
+}
+
+func TestPinWithOptions_Cooldown(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	// Create a resolver where one ref meets cooldown and one doesn't
+	res, err := resolver.NewTest(map[string]*resolver.TestResult{
+		"actions://good/repo@v1": {
+			Resolved: "good/repo@a12a3943",
+		},
+		"actions://new/repo@v2": {
+			// This ref doesn't meet cooldown - returns error
+			Err: &resolver.ErrCooldownNotMet{
+				Ref:         "new/repo@v2",
+				PublishedAt: time.Now(),
+				Cooldown:    3 * 24 * time.Hour,
+			},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	par := new(Actions)
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+		opts *resolver.ResolverOptions
+	}{
+		{
+			name: "cooldown_met",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v1'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@a12a3943' # ratchet:good/repo@v1
+`,
+			opts: &resolver.ResolverOptions{
+				Cooldown: 3 * 24 * time.Hour,
+			},
+		},
+		{
+			name: "cooldown_not_met_skips_ref",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'new/repo@v2'
+`,
+			// Ref should remain unchanged when cooldown is not met
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'new/repo@v2'
+`,
+			opts: &resolver.ResolverOptions{
+				Cooldown: 3 * 24 * time.Hour,
+			},
+		},
+		{
+			name: "mixed_cooldown",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v1'
+      - uses: 'new/repo@v2'
+`,
+			// Only the ref that meets cooldown should be pinned
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@a12a3943' # ratchet:good/repo@v1
+      - uses: 'new/repo@v2'
+`,
+			opts: &resolver.ResolverOptions{
+				Cooldown: 3 * 24 * time.Hour,
+			},
+		},
+		{
+			name: "no_cooldown_option",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v1'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@a12a3943' # ratchet:good/repo@v1
+`,
+			opts: nil, // No cooldown
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := helperStringToYAML(t, tc.in)
+			nodes := map[string]*yaml.Node{
+				"test.yml": m,
+			}
+
+			if err := PinWithOptions(ctx, res, par, nodes, 2, tc.opts); err != nil {
+				t.Fatal(err)
+			}
+
+			if got, want := helperYAMLToString(t, m), strings.TrimSpace(tc.exp); got != want {
+				t.Errorf("expected \n\n%s\n\nto be\n\n%s\n\n", got, want)
+			}
+		})
+	}
+}
+
+func TestUpgradeWithOptions_Cooldown(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	// Create a resolver where one ref meets cooldown and one doesn't
+	res, err := resolver.NewTest(nil, map[string]*resolver.TestResult{
+		"actions://good/repo@v1": {
+			Resolved: "actions://good/repo@v2.0.0",
+		},
+		"actions://new/repo@v2": {
+			// This ref doesn't meet cooldown - returns error
+			Err: &resolver.ErrCooldownNotMet{
+				Ref:         "new/repo@v2",
+				PublishedAt: time.Now(),
+				Cooldown:    7 * 24 * time.Hour,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	par := new(Actions)
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+		opts *resolver.ResolverOptions
+	}{
+		{
+			name: "cooldown_met",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v1'
+`,
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.0.0' # ratchet:good/repo@v2.0.0
+`,
+			opts: &resolver.ResolverOptions{
+				Cooldown: 7 * 24 * time.Hour,
+			},
+		},
+		{
+			name: "cooldown_not_met_skips_ref",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'new/repo@v2'
+`,
+			// Ref should remain unchanged when cooldown is not met
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'new/repo@v2'
+`,
+			opts: &resolver.ResolverOptions{
+				Cooldown: 7 * 24 * time.Hour,
+			},
+		},
+		{
+			name: "mixed_cooldown",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v1'
+      - uses: 'new/repo@v2'
+`,
+			// Only the ref that meets cooldown should be upgraded
+			exp: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'good/repo@v2.0.0' # ratchet:good/repo@v2.0.0
+      - uses: 'new/repo@v2'
+`,
+			opts: &resolver.ResolverOptions{
+				Cooldown: 7 * 24 * time.Hour,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := helperStringToYAML(t, tc.in)
+			nodes := map[string]*yaml.Node{
+				"test.yml": m,
+			}
+
+			if err := UpgradeWithOptions(ctx, res, par, nodes, 2, tc.opts); err != nil {
+				t.Fatal(err)
+			}
+
+			if got, want := helperYAMLToString(t, m), strings.TrimSpace(tc.exp); got != want {
+				t.Errorf("expected \n\n%s\n\nto be\n\n%s\n\n", got, want)
+			}
+		})
+	}
 }

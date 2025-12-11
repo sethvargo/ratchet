@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestActions_Resolve(t *testing.T) {
@@ -188,5 +189,141 @@ func TestParseActionRef(t *testing.T) {
 				t.Errorf("expected %#v to be %#v", got, want)
 			}
 		})
+	}
+}
+
+func TestGitHubRef_Name(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		ref  *GitHubRef
+		exp  string
+	}{
+		{
+			name: "simple",
+			ref: &GitHubRef{
+				owner: "actions",
+				repo:  "checkout",
+				path:  "",
+				ref:   "v3",
+			},
+			exp: "actions/checkout",
+		},
+		{
+			name: "with_path",
+			ref: &GitHubRef{
+				owner: "github",
+				repo:  "codeql-action",
+				path:  "init",
+				ref:   "v1",
+			},
+			exp: "github/codeql-action/init",
+		},
+		{
+			name: "nested_path",
+			ref: &GitHubRef{
+				owner: "owner",
+				repo:  "repo",
+				path:  "path/to/action",
+				ref:   "v2",
+			},
+			exp: "owner/repo/path/to/action",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got, want := tc.ref.Name(), tc.exp; got != want {
+				t.Errorf("expected %q to be %q", got, want)
+			}
+		})
+	}
+}
+
+func TestFormatVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		originalRef string
+		tagName     string
+		exp         string
+	}{
+		{
+			name:        "major_only",
+			originalRef: "v3",
+			tagName:     "v4.2.1",
+			exp:         "v4",
+		},
+		{
+			name:        "major_minor",
+			originalRef: "v3.1",
+			tagName:     "v4.2.1",
+			exp:         "v4.2",
+		},
+		{
+			name:        "major_minor_patch",
+			originalRef: "v3.1.0",
+			tagName:     "v4.2.1",
+			exp:         "v4.2.1",
+		},
+		{
+			name:        "non_v_prefix",
+			originalRef: "main",
+			tagName:     "v4.2.1",
+			exp:         "v4.2.1",
+		},
+		{
+			name:        "tag_shorter_than_ref",
+			originalRef: "v3.1.0",
+			tagName:     "v4.2",
+			exp:         "v4.2",
+		},
+		{
+			name:        "codeql_style_tag",
+			originalRef: "v1",
+			tagName:     "codeql-bundle-v2.19.4",
+			exp:         "codeql-bundle-v2",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got, want := formatVersion(tc.originalRef, tc.tagName), tc.exp; got != want {
+				t.Errorf("expected %q to be %q", got, want)
+			}
+		})
+	}
+}
+
+func TestErrCooldownNotMet(t *testing.T) {
+	t.Parallel()
+
+	err := &ErrCooldownNotMet{
+		Ref:         "actions/checkout@v4",
+		PublishedAt: time.Now(),
+		Cooldown:    3 * 24 * time.Hour,
+	}
+
+	if got, want := err.Error(), "release does not meet cooldown requirement"; got != want {
+		t.Errorf("expected %q to be %q", got, want)
+	}
+
+	if !IsCooldownNotMet(err) {
+		t.Error("expected IsCooldownNotMet to return true")
+	}
+
+	if IsCooldownNotMet(nil) {
+		t.Error("expected IsCooldownNotMet to return false for nil")
+	}
+
+	otherErr := context.DeadlineExceeded
+	if IsCooldownNotMet(otherErr) {
+		t.Error("expected IsCooldownNotMet to return false for other error type")
 	}
 }

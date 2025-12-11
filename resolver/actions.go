@@ -63,15 +63,11 @@ func (g *Actions) ResolveWithOptions(ctx context.Context, value string, opts *Re
 	if err != nil {
 		return "", fmt.Errorf("failed to parse github ref: %w", err)
 	}
-	owner := githubRef.owner
-	repo := githubRef.repo
-	path := githubRef.path
-	ref := githubRef.ref
 
 	// If cooldown is set, check if the tag/ref meets the cooldown requirement.
 	// We do this by fetching the commit the ref points to and checking its date.
 	if opts.Cooldown > 0 {
-		commit, _, err := g.client.Repositories.GetCommit(ctx, owner, repo, ref, nil)
+		commit, _, err := g.client.Repositories.GetCommit(ctx, githubRef.owner, githubRef.repo, githubRef.ref, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to get commit for cooldown check: %w", err)
 		}
@@ -93,17 +89,12 @@ func (g *Actions) ResolveWithOptions(ctx context.Context, value string, opts *Re
 		}
 	}
 
-	sha, _, err := g.client.Repositories.GetCommitSHA1(ctx, owner, repo, ref, "")
+	sha, _, err := g.client.Repositories.GetCommitSHA1(ctx, githubRef.owner, githubRef.repo, githubRef.ref, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit sha: %w", err)
 	}
 
-	name := owner + "/" + repo
-	if path != "" {
-		name = name + "/" + path
-	}
-
-	return fmt.Sprintf("%s@%s", name, sha), nil
+	return fmt.Sprintf("%s@%s", githubRef.Name(), sha), nil
 }
 
 func (g *Actions) LatestVersion(ctx context.Context, value string) (string, error) {
@@ -119,19 +110,16 @@ func (g *Actions) LatestVersionWithOptions(ctx context.Context, value string, op
 	if err != nil {
 		return "", fmt.Errorf("failed to parse github ref: %w", err)
 	}
-	owner := githubRef.owner
-	repo := githubRef.repo
-	path := githubRef.path
-	ref := githubRef.ref
-	branchRef := "heads/" + ref
+
+	branchRef := "heads/" + githubRef.ref
 
 	// Fetching the Git Ref allows us to determine if the ref is for a branch
 	// or tag. We must explicitly format for either `tags/` or `heads/`
 	// (branches). We arbitrarily check if the ref is for a branch, therefore
 	// we expect 404s for Tag references.
-	fullRef, resp, err := g.client.Git.GetRef(ctx, owner, repo, branchRef)
+	fullRef, resp, err := g.client.Git.GetRef(ctx, githubRef.owner, githubRef.repo, branchRef)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusNotFound) {
-		return "", fmt.Errorf("failed to fetch ref %s: %w", ref, err)
+		return "", fmt.Errorf("failed to fetch ref %s: %w", githubRef.ref, err)
 	}
 
 	// Do not upgrade branch refs.
@@ -141,33 +129,22 @@ func (g *Actions) LatestVersionWithOptions(ctx context.Context, value string, op
 
 	// If cooldown is set, we need to find a release that meets the cooldown requirement.
 	if opts.Cooldown > 0 {
-		return g.findReleaseWithCooldown(ctx, owner, repo, path, ref, opts.Cooldown)
+		return g.findReleaseWithCooldown(ctx, githubRef, opts.Cooldown)
 	}
 
-	release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
+	release, _, err := g.client.Repositories.GetLatestRelease(ctx, githubRef.owner, githubRef.repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest release: %w", err)
 	}
 
-	name := owner + "/" + repo
-	if path != "" {
-		name = name + "/" + path
-	}
-	version := *release.TagName
-	if strings.HasPrefix(ref, "v") {
-		refPrecision := strings.Count(githubRef.ref, ".")
-		versionParts := strings.Split(*release.TagName, ".")
-		version = strings.Join(versionParts[:refPrecision+1], ".")
-	}
-
-	result := fmt.Sprintf("%s@%s", name, version)
-	return result, nil
+	version := formatVersion(githubRef.ref, *release.TagName)
+	return fmt.Sprintf("%s@%s", githubRef.Name(), version), nil
 }
 
 // findReleaseWithCooldown finds the most recent release that meets the cooldown requirement.
-func (g *Actions) findReleaseWithCooldown(ctx context.Context, owner, repo, path, ref string, cooldown time.Duration) (string, error) {
+func (g *Actions) findReleaseWithCooldown(ctx context.Context, githubRef *GitHubRef, cooldown time.Duration) (string, error) {
 	// List releases and find the most recent one that meets the cooldown requirement.
-	releases, _, err := g.client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{
+	releases, _, err := g.client.Repositories.ListReleases(ctx, githubRef.owner, githubRef.repo, &github.ListOptions{
 		PerPage: 50, // Get recent releases to find one within cooldown
 	})
 	if err != nil {
@@ -175,10 +152,6 @@ func (g *Actions) findReleaseWithCooldown(ctx context.Context, owner, repo, path
 	}
 
 	now := time.Now()
-	name := owner + "/" + repo
-	if path != "" {
-		name = name + "/" + path
-	}
 
 	for _, release := range releases {
 		if release.Draft != nil && *release.Draft {
@@ -201,24 +174,31 @@ func (g *Actions) findReleaseWithCooldown(ctx context.Context, owner, repo, path
 		}
 
 		// This release meets the cooldown requirement
-		version := *release.TagName
-		if strings.HasPrefix(ref, "v") {
-			refPrecision := strings.Count(ref, ".")
-			versionParts := strings.Split(*release.TagName, ".")
-			if len(versionParts) > refPrecision {
-				version = strings.Join(versionParts[:refPrecision+1], ".")
-			}
-		}
-
-		result := fmt.Sprintf("%s@%s", name, version)
-		return result, nil
+		version := formatVersion(githubRef.ref, *release.TagName)
+		return fmt.Sprintf("%s@%s", githubRef.Name(), version), nil
 	}
 
 	// No release meets the cooldown requirement
 	return "", &ErrCooldownNotMet{
-		Ref:      ref,
+		Ref:      githubRef.ref,
 		Cooldown: cooldown,
 	}
+}
+
+// formatVersion formats the version based on the original ref's precision.
+// If the original ref starts with "v" and has a specific precision (e.g., v3, v3.1, v3.1.2),
+// the returned version will match that precision.
+func formatVersion(originalRef, tagName string) string {
+	if !strings.HasPrefix(originalRef, "v") {
+		return tagName
+	}
+
+	refPrecision := strings.Count(originalRef, ".")
+	versionParts := strings.Split(tagName, ".")
+	if len(versionParts) > refPrecision {
+		return strings.Join(versionParts[:refPrecision+1], ".")
+	}
+	return tagName
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {
@@ -255,6 +235,15 @@ type GitHubRef struct {
 	repo  string
 	path  string
 	ref   string
+}
+
+// Name returns the full name of the action (owner/repo or owner/repo/path).
+func (r *GitHubRef) Name() string {
+	name := r.owner + "/" + r.repo
+	if r.path != "" {
+		name = name + "/" + r.path
+	}
+	return name
 }
 
 func coalesce(s ...string) string {

@@ -6,3 +6,10 @@
   types: ["yaml"]
   files: ^\.github/workflows/
   entry: ratchet lint
+- id: ratchet-pin
+  name: Pin GitHub Actions versions
+  description: Runs ratchet to pin GitHub Actions workflow files
+  language: golang
+  types: ["yaml"]
+  files: ^\.github/workflows/
+  entry: ratchet pin

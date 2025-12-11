@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
@@ -15,7 +16,7 @@ import (
 const upgradeCommandDesc = `Upgrade all pinned versions to the latest version`
 
 const upgradeCommandHelp = `
-Usage: ratchet f [FILE...]
+Usage: ratchet upgrade [FILE...]
 
 The "upgrade" command unpins any pinned versions, upgrades the unpinned version
 constraint to the latest available value, and then re-pins the versions with the
@@ -28,6 +29,9 @@ EXAMPLES
 
     ratchet upgrade ./path/to/file.yaml
 
+    # Only upgrade to releases that are at least 7 days old
+    ratchet upgrade -cooldown 7 ./path/to/file.yaml
+
 FLAGS
 
 `
@@ -37,6 +41,7 @@ type UpgradeCommand struct {
 	flagParser      string
 	flagOut         string
 	flagPin         bool
+	flagCooldown    int
 }
 
 func (c *UpgradeCommand) Desc() string {
@@ -55,6 +60,8 @@ func (c *UpgradeCommand) Flags() *flag.FlagSet {
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions")
+	f.IntVar(&c.flagCooldown, "cooldown", 0,
+		"minimum age in days a release must have before upgrading to it (0 = no cooldown)")
 
 	return f
 }
@@ -88,12 +95,20 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to unpin refs: %w", err)
 	}
 
-	if err := parser.Upgrade(ctx, res, par, loadResult.nodes(), c.flagConcurrency); err != nil {
+	// Build resolver options with cooldown if specified
+	var opts *resolver.ResolverOptions
+	if c.flagCooldown > 0 {
+		opts = &resolver.ResolverOptions{
+			Cooldown: time.Duration(c.flagCooldown) * 24 * time.Hour,
+		}
+	}
+
+	if err := parser.UpgradeWithOptions(ctx, res, par, loadResult.nodes(), c.flagConcurrency, opts); err != nil {
 		return fmt.Errorf("failed to upgrade refs: %w", err)
 	}
 
 	if c.flagPin {
-		if err := parser.Pin(ctx, res, par, loadResult.nodes(), c.flagConcurrency); err != nil {
+		if err := parser.PinWithOptions(ctx, res, par, loadResult.nodes(), c.flagConcurrency, opts); err != nil {
 			return fmt.Errorf("failed to pin upgraded refs: %w", err)
 		}
 	}

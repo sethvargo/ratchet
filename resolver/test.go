@@ -28,6 +28,10 @@ func NewTest(data, latest map[string]*TestResult) (*Test, error) {
 }
 
 func (t *Test) Resolve(ctx context.Context, value string) (string, error) {
+	return t.ResolveWithOptions(ctx, value, nil)
+}
+
+func (t *Test) ResolveWithOptions(ctx context.Context, value string, opts *ResolverOptions) (string, error) {
 	v, ok := t.data[value]
 	if !ok {
 		panic(fmt.Sprintf("no test value for %q", value))
@@ -36,6 +40,10 @@ func (t *Test) Resolve(ctx context.Context, value string) (string, error) {
 }
 
 func (t *Test) LatestVersion(ctx context.Context, value string) (string, error) {
+	return t.LatestVersionWithOptions(ctx, value, nil)
+}
+
+func (t *Test) LatestVersionWithOptions(ctx context.Context, value string, opts *ResolverOptions) (string, error) {
 	v, ok := t.latest[value]
 	if !ok {
 		panic(fmt.Sprintf("no test value for %q", value))

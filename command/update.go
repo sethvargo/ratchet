@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sethvargo/ratchet/parser"
 	"github.com/sethvargo/ratchet/resolver"
@@ -27,12 +28,16 @@ EXAMPLES
 
     ratchet update ./path/to/file.yaml
 
+    # Only update to releases that are at least 3 days old
+    ratchet update -cooldown 3 ./path/to/file.yaml
+
 FLAGS
 
 `
 
 type UpdateCommand struct {
 	PinCommand
+	flagCooldown int
 }
 
 func (c *UpdateCommand) Desc() string {
@@ -45,6 +50,9 @@ func (c *UpdateCommand) Flags() *flag.FlagSet {
 		fmt.Fprintf(os.Stderr, "%s\n\n", strings.TrimSpace(updateCommandHelp))
 		f.PrintDefaults()
 	}
+
+	f.IntVar(&c.flagCooldown, "cooldown", 0,
+		"minimum age in days a release must have before updating to it (0 = no cooldown)")
 
 	return f
 }
@@ -75,10 +83,18 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 	}
 
 	if err := parser.Unpin(ctx, loadResult.nodes()); err != nil {
-		return fmt.Errorf("failed to pin refs: %w", err)
+		return fmt.Errorf("failed to unpin refs: %w", err)
 	}
 
-	if err := parser.Pin(ctx, res, par, loadResult.nodes(), c.flagConcurrency); err != nil {
+	// Build resolver options with cooldown if specified
+	var opts *resolver.ResolverOptions
+	if c.flagCooldown > 0 {
+		opts = &resolver.ResolverOptions{
+			Cooldown: time.Duration(c.flagCooldown) * 24 * time.Hour,
+		}
+	}
+
+	if err := parser.PinWithOptions(ctx, res, par, loadResult.nodes(), c.flagConcurrency, opts); err != nil {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 

@@ -124,6 +124,12 @@ func Lint(ctx context.Context, parser Parser, nodes map[string]*yaml.Node) ([]*l
 // Pin extracts all references from the given YAML document and resolves them
 // using the given resolver, updating the associated YAML nodes.
 func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[string]*yaml.Node, concurrency int64) error {
+	return PinWithOptions(ctx, res, parser, nodes, concurrency, nil)
+}
+
+// PinWithOptions extracts all references from the given YAML document and resolves them
+// using the given resolver and options, updating the associated YAML nodes.
+func PinWithOptions(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[string]*yaml.Node, concurrency int64, opts *resolver.ResolverOptions) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
@@ -171,11 +177,17 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[st
 				return
 			}
 
-			resolved, err := res.Resolve(ctx, ref)
+			resolved, err := res.ResolveWithOptions(ctx, ref, opts)
 			if err != nil {
+				// If the error is a cooldown error, skip this ref silently
+				// (don't update the node, but don't report as error either)
+				if resolver.IsCooldownNotMet(err) {
+					return
+				}
 				merrLock.Lock()
 				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
 				merrLock.Unlock()
+				return
 			}
 
 			denormRef := resolver.DenormalizeRef(ref)
@@ -195,6 +207,10 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[st
 }
 
 func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[string]*yaml.Node, concurrency int64) error {
+	return UpgradeWithOptions(ctx, res, parser, nodes, concurrency, nil)
+}
+
+func UpgradeWithOptions(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[string]*yaml.Node, concurrency int64, opts *resolver.ResolverOptions) error {
 	refsList, err := parser.Parse(nodes)
 	if err != nil {
 		return err
@@ -236,11 +252,17 @@ func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes ma
 				return
 			}
 
-			latest, err := res.LatestVersion(ctx, ref)
+			latest, err := res.LatestVersionWithOptions(ctx, ref, opts)
 			if err != nil {
+				// If the error is a cooldown error, skip this ref silently
+				// (don't update the node, but don't report as error either)
+				if resolver.IsCooldownNotMet(err) {
+					return
+				}
 				merrLock.Lock()
 				merr = errors.Join(merr, fmt.Errorf("failed to resolve %q: %w", ref, err))
 				merrLock.Unlock()
+				return
 			}
 
 			denormRef := parser.DenormalizeRef(ref)

@@ -51,6 +51,14 @@ func NewActions(ctx context.Context) (*Actions, error) {
 }
 
 func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
+	return g.ResolveWithOptions(ctx, value, nil)
+}
+
+func (g *Actions) ResolveWithOptions(ctx context.Context, value string, opts *ResolverOptions) (string, error) {
+	if opts == nil {
+		opts = DefaultResolverOptions()
+	}
+
 	githubRef, err := ParseActionRef(value)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse github ref: %w", err)
@@ -59,6 +67,31 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	repo := githubRef.repo
 	path := githubRef.path
 	ref := githubRef.ref
+
+	// If cooldown is set, check if the tag/ref meets the cooldown requirement.
+	// We do this by fetching the commit the ref points to and checking its date.
+	if opts.Cooldown > 0 {
+		commit, _, err := g.client.Repositories.GetCommit(ctx, owner, repo, ref, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to get commit for cooldown check: %w", err)
+		}
+
+		var commitDate time.Time
+		if commit.Commit != nil && commit.Commit.Committer != nil && commit.Commit.Committer.Date != nil {
+			commitDate = commit.Commit.Committer.Date.Time
+		}
+
+		if !commitDate.IsZero() {
+			age := time.Since(commitDate)
+			if age < opts.Cooldown {
+				return "", &ErrCooldownNotMet{
+					Ref:         value,
+					PublishedAt: commitDate,
+					Cooldown:    opts.Cooldown,
+				}
+			}
+		}
+	}
 
 	sha, _, err := g.client.Repositories.GetCommitSHA1(ctx, owner, repo, ref, "")
 	if err != nil {
@@ -74,6 +107,14 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 }
 
 func (g *Actions) LatestVersion(ctx context.Context, value string) (string, error) {
+	return g.LatestVersionWithOptions(ctx, value, nil)
+}
+
+func (g *Actions) LatestVersionWithOptions(ctx context.Context, value string, opts *ResolverOptions) (string, error) {
+	if opts == nil {
+		opts = DefaultResolverOptions()
+	}
+
 	githubRef, err := ParseActionRef(value)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse github ref: %w", err)
@@ -98,6 +139,11 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 		return value, nil
 	}
 
+	// If cooldown is set, we need to find a release that meets the cooldown requirement.
+	if opts.Cooldown > 0 {
+		return g.findReleaseWithCooldown(ctx, owner, repo, path, ref, opts.Cooldown)
+	}
+
 	release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest release: %w", err)
@@ -116,6 +162,63 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 
 	result := fmt.Sprintf("%s@%s", name, version)
 	return result, nil
+}
+
+// findReleaseWithCooldown finds the most recent release that meets the cooldown requirement.
+func (g *Actions) findReleaseWithCooldown(ctx context.Context, owner, repo, path, ref string, cooldown time.Duration) (string, error) {
+	// List releases and find the most recent one that meets the cooldown requirement.
+	releases, _, err := g.client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{
+		PerPage: 50, // Get recent releases to find one within cooldown
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to list releases: %w", err)
+	}
+
+	now := time.Now()
+	name := owner + "/" + repo
+	if path != "" {
+		name = name + "/" + path
+	}
+
+	for _, release := range releases {
+		if release.Draft != nil && *release.Draft {
+			continue
+		}
+		if release.Prerelease != nil && *release.Prerelease {
+			continue
+		}
+
+		var publishedAt time.Time
+		if release.PublishedAt != nil {
+			publishedAt = release.PublishedAt.Time
+		} else if release.CreatedAt != nil {
+			publishedAt = release.CreatedAt.Time
+		}
+
+		// Check if this release meets the cooldown requirement
+		if !publishedAt.IsZero() && now.Sub(publishedAt) < cooldown {
+			continue
+		}
+
+		// This release meets the cooldown requirement
+		version := *release.TagName
+		if strings.HasPrefix(ref, "v") {
+			refPrecision := strings.Count(ref, ".")
+			versionParts := strings.Split(*release.TagName, ".")
+			if len(versionParts) > refPrecision {
+				version = strings.Join(versionParts[:refPrecision+1], ".")
+			}
+		}
+
+		result := fmt.Sprintf("%s@%s", name, version)
+		return result, nil
+	}
+
+	// No release meets the cooldown requirement
+	return "", &ErrCooldownNotMet{
+		Ref:      ref,
+		Cooldown: cooldown,
+	}
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {

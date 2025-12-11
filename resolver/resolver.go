@@ -18,10 +18,21 @@ type Resolver interface {
 	// canceled.
 	Resolve(context.Context, string) (string, error)
 
+	// ResolveWithOptions resolves the given reference with the provided options,
+	// returning the resolved reference or an error. If the provided context is
+	// canceled, the resolution is also canceled.
+	ResolveWithOptions(context.Context, string, *ResolverOptions) (string, error)
+
 	// LatestVersion resolves the given reference to the most recent release version,
 	// returning the resolved reference or an error. If the provided context is
 	// canceled, the resolution is also canceled.
 	LatestVersion(context.Context, string) (string, error)
+
+	// LatestVersionWithOptions resolves the given reference to the most recent
+	// release version that meets the provided options, returning the resolved
+	// reference or an error. If the provided context is canceled, the resolution
+	// is also canceled.
+	LatestVersionWithOptions(context.Context, string, *ResolverOptions) (string, error)
 }
 
 // DefaultResolver is the default resolver.
@@ -50,9 +61,18 @@ func NewDefaultResolver(ctx context.Context) (Resolver, error) {
 
 // Resolve resolves the ref.
 func (r *DefaultResolver) Resolve(ctx context.Context, ref string) (string, error) {
+	return r.ResolveWithOptions(ctx, ref, nil)
+}
+
+// ResolveWithOptions resolves the ref with the provided options.
+func (r *DefaultResolver) ResolveWithOptions(ctx context.Context, ref string, opts *ResolverOptions) (string, error) {
+	if opts == nil {
+		opts = DefaultResolverOptions()
+	}
+
 	switch {
 	case strings.HasPrefix(ref, ActionsProtocol):
-		return r.actions.Resolve(ctx, strings.TrimPrefix(ref, ActionsProtocol))
+		return r.actions.ResolveWithOptions(ctx, strings.TrimPrefix(ref, ActionsProtocol), opts)
 	case strings.HasPrefix(ref, ContainerProtocol):
 		return r.container.Resolve(ctx, strings.TrimPrefix(ref, ContainerProtocol))
 	default:
@@ -62,9 +82,18 @@ func (r *DefaultResolver) Resolve(ctx context.Context, ref string) (string, erro
 
 // LatestVersion upgrades the ref.
 func (r *DefaultResolver) LatestVersion(ctx context.Context, ref string) (string, error) {
+	return r.LatestVersionWithOptions(ctx, ref, nil)
+}
+
+// LatestVersionWithOptions upgrades the ref with the provided options.
+func (r *DefaultResolver) LatestVersionWithOptions(ctx context.Context, ref string, opts *ResolverOptions) (string, error) {
+	if opts == nil {
+		opts = DefaultResolverOptions()
+	}
+
 	switch {
 	case strings.HasPrefix(ref, ActionsProtocol):
-		res, err := r.actions.LatestVersion(ctx, strings.TrimPrefix(ref, ActionsProtocol))
+		res, err := r.actions.LatestVersionWithOptions(ctx, strings.TrimPrefix(ref, ActionsProtocol), opts)
 		if err != nil {
 			return "", fmt.Errorf("failed to upgrade ref: %w", err)
 		}

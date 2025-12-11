@@ -214,6 +214,19 @@ function ratchet {
 }
 ```
 
+#### Pre-commit
+
+Ratchet can be ran as a pre-commit hook.
+In your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/sethvargo/ratchet
+    rev: v0.11.4
+    hooks:
+      - id: ratchet-lint
+```
+
 
 ## Auth
 

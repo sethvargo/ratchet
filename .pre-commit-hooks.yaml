@@ -1,0 +1,8 @@
+---
+- id: ratchet-lint
+  name: Check GitHub Actions for unpinned versions
+  description: Runs ratchet to lint GitHub Actions workflow files
+  language: golang
+  types: ["yaml"]
+  files: ^\.github/workflows/
+  entry: ratchet lint

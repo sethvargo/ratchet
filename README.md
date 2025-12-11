@@ -222,7 +222,7 @@ In your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/sethvargo/ratchet
-    rev: v0.11.4
+    rev: main
     hooks:
       - id: ratchet-pin
 ```

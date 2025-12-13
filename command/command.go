@@ -264,3 +264,191 @@ func computeNewlineTargets(before, after string) []int {
 
 	return result
 }
+
+// writeYAMLFilesSurgical writes files using surgical text replacement instead of
+// re-serializing the YAML. This preserves the original formatting of the file.
+// It walks the modified yaml.Node tree and applies text replacements based on
+// line/column positions.
+func (r loadResults) writeYAMLFilesSurgical(outPath string) error {
+	var merr error
+
+	for pth, f := range r {
+		outFile := outPath
+		if strings.HasSuffix(outPath, "/") {
+			outFile = filepath.Join(outPath, pth)
+		}
+		if outFile == "" {
+			outFile = pth
+		}
+
+		final := applySurgicalReplacements(f.contents, f.node)
+
+		if err := atomic.Write(pth, outFile, strings.NewReader(final)); err != nil {
+			merr = errors.Join(merr, fmt.Errorf("failed to save file %s: %w", outFile, err))
+			continue
+		}
+	}
+
+	return merr
+}
+
+// applySurgicalReplacements walks the yaml.Node tree and applies text replacements
+// to the original content based on the node's line/column positions.
+func applySurgicalReplacements(contents string, node *yaml.Node) string {
+	// Collect all replacements from the node tree
+	var replacements []surgicalReplacement
+	collectReplacements(node, contents, &replacements)
+
+	if len(replacements) == 0 {
+		return contents
+	}
+
+	// Sort by line descending, then column descending, so we can apply
+	// replacements without affecting positions of subsequent ones
+	slices.SortFunc(replacements, func(a, b surgicalReplacement) int {
+		if a.line != b.line {
+			return b.line - a.line
+		}
+		return b.col - a.col
+	})
+
+	lines := strings.Split(contents, "\n")
+
+	for _, rep := range replacements {
+		if rep.line < 1 || rep.line > len(lines) {
+			continue
+		}
+
+		lineIdx := rep.line - 1
+		line := lines[lineIdx]
+
+		// Find the old value starting from the column position
+		colIdx := rep.col - 1
+		if colIdx < 0 || colIdx >= len(line) {
+			continue
+		}
+
+		// Find the old value in the line
+		valueStart := strings.Index(line[colIdx:], rep.oldValue)
+		if valueStart == -1 {
+			continue
+		}
+		valueStart += colIdx
+		valueEnd := valueStart + len(rep.oldValue)
+
+		// Find where any existing comment starts (after the value)
+		commentStart := -1
+		rest := line[valueEnd:]
+		for i := 0; i < len(rest); i++ {
+			if rest[i] == '#' {
+				commentStart = valueEnd + i
+				break
+			}
+		}
+
+		// Build the new line: keep prefix, add new value, then new comment
+		var newLine string
+		if commentStart != -1 {
+			// There's an existing comment - replace value and everything after
+			newLine = line[:valueStart] + rep.newValue
+		} else {
+			// No existing comment - just replace value
+			newLine = line[:valueStart] + rep.newValue + line[valueEnd:]
+		}
+
+		// Add new comment if specified
+		if rep.newComment != "" {
+			// Check if the comment already includes the # prefix
+			if strings.HasPrefix(rep.newComment, "#") {
+				newLine = newLine + " " + rep.newComment
+			} else {
+				newLine = newLine + " # " + rep.newComment
+			}
+		}
+
+		lines[lineIdx] = newLine
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+type surgicalReplacement struct {
+	line       int
+	col        int
+	oldValue   string
+	newValue   string
+	newComment string
+}
+
+// collectReplacements walks the node tree and collects replacements for nodes
+// that have been modified by the parser (detected by presence of "ratchet:" in LineComment).
+func collectReplacements(node *yaml.Node, contents string, replacements *[]surgicalReplacement) {
+	if node == nil {
+		return
+	}
+
+	// Only process scalar nodes that have been modified by Pin/Update/Upgrade
+	// These are identified by having "ratchet:" in the LineComment
+	if node.Kind == yaml.ScalarNode && node.Line > 0 && node.Column > 0 &&
+		strings.Contains(node.LineComment, "ratchet:") {
+
+		lines := strings.Split(contents, "\n")
+		if node.Line <= len(lines) {
+			line := lines[node.Line-1]
+			colIdx := node.Column - 1
+
+			if colIdx >= 0 && colIdx < len(line) {
+				origValue := extractValueAtPosition(line, colIdx)
+
+				if origValue != "" && origValue != node.Value {
+					*replacements = append(*replacements, surgicalReplacement{
+						line:       node.Line,
+						col:        node.Column,
+						oldValue:   origValue,
+						newValue:   node.Value,
+						newComment: node.LineComment,
+					})
+				}
+			}
+		}
+	}
+
+	// Recurse into children
+	for _, child := range node.Content {
+		collectReplacements(child, contents, replacements)
+	}
+}
+
+// extractValueAtPosition extracts the YAML value at the given position in the line.
+// Handles both quoted and unquoted values.
+func extractValueAtPosition(line string, col int) string {
+	if col >= len(line) {
+		return ""
+	}
+
+	rest := line[col:]
+
+	// Handle quoted strings
+	if len(rest) > 0 && (rest[0] == '\'' || rest[0] == '"') {
+		quote := rest[0]
+		end := 1
+		for end < len(rest) {
+			if rest[end] == byte(quote) && (end == 0 || rest[end-1] != '\\') {
+				return rest[1:end]
+			}
+			end++
+		}
+	}
+
+	// Handle unquoted values - read until whitespace or comment
+	end := 0
+	for end < len(rest) {
+		ch := rest[end]
+		if ch == ' ' || ch == '\t' || ch == '#' || ch == '\n' || ch == '\r' {
+			break
+		}
+		end++
+	}
+
+	return rest[:end]
+}

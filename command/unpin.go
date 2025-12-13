@@ -35,7 +35,8 @@ FLAGS
 `
 
 type UnpinCommand struct {
-	flagOut string
+	flagOut                      string
+	flagExperimentalPreserveYAML bool
 }
 
 func (c *UnpinCommand) Desc() string {
@@ -50,6 +51,8 @@ func (c *UnpinCommand) Flags() *flag.FlagSet {
 	}
 
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
+	f.BoolVar(&c.flagExperimentalPreserveYAML, "experimental-preserve-formatting", false,
+		"(experimental) preserve original YAML formatting")
 
 	return f
 }
@@ -73,8 +76,14 @@ func (c *UnpinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
-		return fmt.Errorf("failed to save files: %w", err)
+	if c.flagExperimentalPreserveYAML {
+		if err := loadResult.writeYAMLFilesSurgical(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
+	} else {
+		if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
 	}
 
 	return nil

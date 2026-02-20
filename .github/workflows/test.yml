@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
     runs-on: '${{ matrix.os }}'
     steps:
-      - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+      - uses: 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd' # ratchet:actions/checkout@v6
 
       - uses: './'
         with:
@@ -36,9 +36,9 @@ jobs:
   test:
     runs-on: 'ubuntu-latest'
     steps:
-      - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+      - uses: 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd' # ratchet:actions/checkout@v6
 
-      - uses: 'actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b' # ratchet:actions/setup-go@v5
+      - uses: 'actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5' # ratchet:actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
 

@@ -136,8 +136,6 @@ func Pin(ctx context.Context, res resolver.Resolver, parser Parser, nodes map[st
 	var merr error
 
 	for ref, nodes := range refs {
-		ref := ref
-		nodes := nodes
 
 		// Remove any absolute references from the list. We do not want to pin
 		// absolute references since they are already pinned.
@@ -207,8 +205,6 @@ func Upgrade(ctx context.Context, res resolver.Resolver, parser Parser, nodes ma
 	var merr error
 
 	for ref, nodes := range refs {
-		ref := ref
-		nodes := nodes
 
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to acquire semaphore: %w", err)
@@ -321,12 +317,12 @@ func appendOriginalToComment(comment, pin string) string {
 // extractOriginalFromComment pulls the originally pinned value from the comment
 // on the string.
 func extractOriginalFromComment(comment string) (string, string) {
-	idx := strings.Index(comment, ratchetPrefix)
-	if idx < 0 {
+	_, after, ok := strings.Cut(comment, ratchetPrefix)
+	if !ok {
 		return "", comment
 	}
 
-	rest := comment[idx+len(ratchetPrefix):]
+	rest := after
 	parts := strings.SplitN(rest, " ", 2)
 	switch len(parts) {
 	case 1:

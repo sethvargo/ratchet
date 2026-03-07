@@ -1,0 +1,8 @@
+- id: "ratchet-pin"
+  name: "Ratchet: Pin GitHub Action versions"
+  entry: ratchet
+  args: ["pin"]
+  language: golang
+  files: ^\.github/workflows/.*\.(yml|yaml)$
+  pass_filenames: true
+  language_version: 1.24.2

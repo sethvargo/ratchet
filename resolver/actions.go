@@ -110,7 +110,10 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	version := *release.TagName
 	if strings.HasPrefix(ref, "v") {
 		refPrecision := strings.Count(githubRef.ref, ".")
-		versionParts := strings.Split(*release.TagName, ".")
+		for strings.Count(version, ".") < refPrecision {
+			version += ".0"
+		}
+		versionParts := strings.Split(version, ".")
 		version = strings.Join(versionParts[:refPrecision+1], ".")
 	}
 

@@ -90,6 +90,16 @@ func TestActions_LatestVersion(t *testing.T) {
 			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+\.[0-9]+`,
 		},
 		{
+			name: "floating-tag-with-patch-precision",
+			in:   "google-github-actions/auth@v3.0.0",
+			exp:  `google-github-actions/auth@v[0-9]+\.[0-9]+\.[0-9]+`,
+		},
+		{
+			name: "floating-tag-with-minor-precision",
+			in:   "actions/github-script@v8.0",
+			exp:  `actions/github-script@v[0-9]+\.[0-9]+`,
+		},
+		{
 			name: "skips-default-branch",
 			in:   "github/codeql-action/init@main",
 			exp:  `github/codeql-action/init@main`,

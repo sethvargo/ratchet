@@ -33,10 +33,11 @@ FLAGS
 `
 
 type UpgradeCommand struct {
-	flagConcurrency int64
-	flagParser      string
-	flagOut         string
-	flagPin         bool
+	flagConcurrency              int64
+	flagParser                   string
+	flagOut                      string
+	flagPin                      bool
+	flagExperimentalPreserveYAML bool
 }
 
 func (c *UpgradeCommand) Desc() string {
@@ -55,6 +56,8 @@ func (c *UpgradeCommand) Flags() *flag.FlagSet {
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions")
+	f.BoolVar(&c.flagExperimentalPreserveYAML, "experimental-preserve-formatting", false,
+		"(experimental) preserve original YAML formatting")
 
 	return f
 }
@@ -98,8 +101,14 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 		}
 	}
 
-	if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
-		return fmt.Errorf("failed to save files: %w", err)
+	if c.flagExperimentalPreserveYAML {
+		if err := loadResult.writeYAMLFilesSurgical(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
+	} else {
+		if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
 	}
 
 	return nil

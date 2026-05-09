@@ -36,9 +36,10 @@ FLAGS
 `
 
 type PinCommand struct {
-	flagConcurrency int64
-	flagParser      string
-	flagOut         string
+	flagConcurrency              int64
+	flagParser                   string
+	flagOut                      string
+	flagExperimentalPreserveYAML bool
 }
 
 func (c *PinCommand) Desc() string {
@@ -56,6 +57,8 @@ func (c *PinCommand) Flags() *flag.FlagSet {
 		"maximum number of concurrent resolutions")
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
+	f.BoolVar(&c.flagExperimentalPreserveYAML, "experimental-preserve-formatting", false,
+		"(experimental) preserve original YAML formatting")
 
 	return f
 }
@@ -89,8 +92,14 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
-		return fmt.Errorf("failed to save files: %w", err)
+	if c.flagExperimentalPreserveYAML {
+		if err := loadResult.writeYAMLFilesSurgical(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
+	} else {
+		if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
 	}
 
 	return nil

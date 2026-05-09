@@ -1,0 +1,27 @@
+name: Example
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # This comment describes a complex step
+      # It does multiple things
+      # and has several lines of explanation
+      - name: A complex step with docs
+        run: ./complex.sh
+
+      - name: Run a one-line script
+        uses: actions/github-script@v6
+        with:
+          script: |
+            console.log("Hello, world!");
+      # - name: Example disabled script
+      #   run: Turning this off for now
+
+      - name: Final step
+        run: echo "This is the final step."

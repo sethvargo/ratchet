@@ -82,8 +82,14 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return fmt.Errorf("failed to pin refs: %w", err)
 	}
 
-	if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
-		return fmt.Errorf("failed to save files: %w", err)
+	if c.flagExperimentalPreserveYAML {
+		if err := loadResult.writeYAMLFilesSurgical(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
+	} else {
+		if err := loadResult.writeYAMLFiles(c.flagOut); err != nil {
+			return fmt.Errorf("failed to save files: %w", err)
+		}
 	}
 
 	return nil

@@ -1,11 +1,14 @@
 package command
 
 import (
+	"bytes"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/braydonk/yaml"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -28,6 +31,11 @@ func Test_loadYAMLFiles(t *testing.T) {
 		"gitlabci.yml":            "",
 		"no-trailing-newline.yml": "no-trailing-newline.golden.yml",
 		"tekton.yml":              "",
+
+		// These files demonstrate the YAML marshaling bug from PR #125 where
+		// comments get misplaced. Uncomment to see the failures:
+		// "github-pr125.yml":        "",
+		// "github-codeql-pr125.yml": "",
 	}
 
 	for input, expected := range cases {
@@ -52,8 +60,8 @@ func Test_loadYAMLFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if got != string(want) {
-				t.Errorf("expected\n\n%s\n\nto be\n\n%s\n", got, want)
+			if diff := cmp.Diff(string(want), got); diff != "" {
+				t.Errorf("round-trip mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -222,5 +230,93 @@ test-code-job1:
 				t.Errorf("unexpected render diff (+got, -want):\n%s", diff)
 			}
 		})
+	}
+}
+
+// Test_applySurgicalReplacements_preservesFormatting tests that the surgical
+// replacement approach preserves original YAML formatting (PR #125).
+func Test_applySurgicalReplacements_preservesFormatting(t *testing.T) {
+	t.Parallel()
+
+	fsys := os.DirFS("../testdata")
+
+	cases := []struct {
+		name     string
+		file     string
+		modifyFn func(node *yaml.Node)
+	}{
+		{
+			name: "github-pr125.yml",
+			file: "github-pr125.yml",
+			modifyFn: func(node *yaml.Node) {
+				walkAndPin(node, "actions/checkout@v2", "actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab", "# ratchet:actions/checkout@v2")
+				walkAndPin(node, "actions/github-script@v6", "actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea", "# ratchet:actions/github-script@v6")
+			},
+		},
+		{
+			name: "github-codeql-pr125.yml",
+			file: "github-codeql-pr125.yml",
+			modifyFn: func(node *yaml.Node) {
+				walkAndPin(node, "actions/checkout@v5", "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", "# ratchet:actions/checkout@v5")
+				walkAndPin(node, "github/codeql-action/init@v3", "github/codeql-action/init@aa578102511db1f4524ed59b8cc2bae4f6e88195", "# ratchet:github/codeql-action/init@v3")
+				walkAndPin(node, "github/codeql-action/autobuild@v3", "github/codeql-action/autobuild@aa578102511db1f4524ed59b8cc2bae4f6e88195", "# ratchet:github/codeql-action/autobuild@v3")
+				walkAndPin(node, "github/codeql-action/analyze@v3", "github/codeql-action/analyze@aa578102511db1f4524ed59b8cc2bae4f6e88195", "# ratchet:github/codeql-action/analyze@v3")
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			original, err := fsys.(fs.ReadFileFS).ReadFile(tc.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var node yaml.Node
+			dec := yaml.NewDecoder(bytes.NewReader(original))
+			dec.SetScanBlockScalarAsLiteral(true)
+			if err := dec.Decode(&node); err != nil {
+				t.Fatal(err)
+			}
+
+			tc.modifyFn(&node)
+			got := applySurgicalReplacements(string(original), &node)
+
+			// Verify line count unchanged (surgical replacement shouldn't add/remove lines)
+			originalLines := strings.Split(string(original), "\n")
+			gotLines := strings.Split(got, "\n")
+			if len(originalLines) != len(gotLines) {
+				t.Errorf("line count changed: original=%d, got=%d", len(originalLines), len(gotLines))
+			}
+
+			// Verify non-uses lines are unchanged, uses lines have ratchet comments
+			for i := 0; i < len(originalLines) && i < len(gotLines); i++ {
+				if strings.Contains(originalLines[i], "uses:") {
+					if !strings.Contains(gotLines[i], "ratchet:") {
+						t.Errorf("line %d: expected ratchet comment, got %q", i+1, gotLines[i])
+					}
+					continue
+				}
+				if originalLines[i] != gotLines[i] {
+					t.Errorf("line %d: unexpected change\n  original: %q\n  got:      %q", i+1, originalLines[i], gotLines[i])
+				}
+			}
+		})
+	}
+}
+
+// walkAndPin simulates what Pin does when finding a matching action reference.
+func walkAndPin(node *yaml.Node, oldValue, newValue, comment string) {
+	if node == nil {
+		return
+	}
+	if node.Kind == yaml.ScalarNode && node.Value == oldValue {
+		node.Value = newValue
+		node.LineComment = comment
+	}
+	for _, child := range node.Content {
+		walkAndPin(child, oldValue, newValue, comment)
 	}
 }

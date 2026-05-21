@@ -167,6 +167,30 @@ ratchet upgrade -out workflow-compiled.yml workflow.yml
 > [!NOTE]
 > Performs an `update` if the constraint ref is for a branch.
 
+#### Min release age
+
+When running `pin`, `update`, or `upgrade`, you can require that GitHub Actions
+commits and releases be at least a minimum age before ratchet will resolve them.
+This reduces the risk of pinning to a freshly compromised release (similar to
+[pnpm's minimumReleaseAge](https://pnpm.io/settings#minimumreleaseage)).
+
+```shell
+# Only adopt versions at least 24 hours old
+ratchet update -min-release-age 24h workflow.yml
+
+# Same via environment variable (flag overrides env default)
+export RATCHET_MIN_RELEASE_AGE=24h
+ratchet upgrade workflow.yml
+
+# Disable for an emergency refresh
+ratchet update -min-release-age 0 workflow.yml
+```
+
+By default, min release age is **off** (`0`). It applies to **GitHub Actions
+only**; container image resolution is unchanged. Pinned workflows in git are not
+affected until you refresh pins. This does not protect against an attacker
+repointing a tag to an old commit.
+
 #### Lint
 
 The `lint` command reports if all versions are pinned, printing any violations,

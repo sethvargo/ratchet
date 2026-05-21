@@ -31,8 +31,8 @@ type DefaultResolver struct {
 }
 
 // NewDefaultResolver returns the default resolver.
-func NewDefaultResolver(ctx context.Context) (Resolver, error) {
-	actions, err := NewActions(ctx)
+func NewDefaultResolver(ctx context.Context, policy Policy) (Resolver, error) {
+	actions, err := NewActions(ctx, policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup actions resolver: %w", err)
 	}

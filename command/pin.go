@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
@@ -36,9 +37,10 @@ FLAGS
 `
 
 type PinCommand struct {
-	flagConcurrency int64
-	flagParser      string
-	flagOut         string
+	flagConcurrency   int64
+	flagParser        string
+	flagOut           string
+	flagMinReleaseAge time.Duration
 }
 
 func (c *PinCommand) Desc() string {
@@ -57,6 +59,14 @@ func (c *PinCommand) Flags() *flag.FlagSet {
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 
+	minReleaseAge, err := resolver.MinReleaseAgeFromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(2)
+	}
+	f.DurationVar(&c.flagMinReleaseAge, "min-release-age", minReleaseAge,
+		"minimum age of GitHub Actions commit/release before pin/update (0=off); also RATCHET_MIN_RELEASE_AGE")
+
 	return f
 }
 
@@ -71,7 +81,9 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	res, err := resolver.NewDefaultResolver(ctx)
+	res, err := resolver.NewDefaultResolver(ctx, resolver.Policy{
+		MinReleaseAge: c.flagMinReleaseAge,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}

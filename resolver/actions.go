@@ -25,10 +25,11 @@ func NormalizeActionsRef(in string) string {
 // Actions resolves GitHub references.
 type Actions struct {
 	client *github.Client
+	policy Policy
 }
 
 // NewActions creates a new resolver for GitHub Actions.
-func NewActions(ctx context.Context) (*Actions, error) {
+func NewActions(ctx context.Context, policy Policy) (*Actions, error) {
 	httpClient := &http.Client{}
 	if ActionsToken != "" {
 		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: ActionsToken})
@@ -47,6 +48,7 @@ func NewActions(ctx context.Context) (*Actions, error) {
 
 	return &Actions{
 		client: client,
+		policy: policy,
 	}, nil
 }
 
@@ -63,6 +65,22 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	sha, _, err := g.client.Repositories.GetCommitSHA1(ctx, owner, repo, ref, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit sha: %w", err)
+	}
+
+	if g.policy.enabled() {
+		commit, _, err := g.client.Repositories.GetCommit(ctx, owner, repo, sha, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to get commit: %w", err)
+		}
+		now := time.Now()
+		if !commitOlderThan(commit, g.policy.MinReleaseAge, now) {
+			commitTime := commitDate(commit)
+			ago := now.Sub(commitTime).Round(time.Minute)
+			return "", fmt.Errorf(
+				"%s/%s@%s points to commit %s (%s ago), younger than min-release-age %s; wait or use -min-release-age 0",
+				owner, repo, ref, sha[:7], ago, g.policy.MinReleaseAge,
+			)
+		}
 	}
 
 	name := owner + "/" + repo
@@ -98,27 +116,53 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 		return value, nil
 	}
 
-	release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
-	if err != nil {
-		return "", fmt.Errorf("failed to get latest release: %w", err)
-	}
-
 	name := owner + "/" + repo
 	if path != "" {
 		name = name + "/" + path
 	}
-	version := *release.TagName
-	if strings.HasPrefix(ref, "v") {
-		refPrecision := strings.Count(githubRef.ref, ".")
-		for strings.Count(version, ".") < refPrecision {
-			version += ".0"
+
+	var version string
+	if g.policy.enabled() {
+		releases, err := g.listReleases(ctx, owner, repo)
+		if err != nil {
+			return "", err
 		}
-		versionParts := strings.Split(version, ".")
-		version = strings.Join(versionParts[:refPrecision+1], ".")
+		now := time.Now()
+		var ok bool
+		version, ok = selectEligibleRelease(releases, g.policy.MinReleaseAge, ref, now)
+		if !ok {
+			return "", fmt.Errorf(
+				"no release for %s/%s published at least %s ago matching %q",
+				owner, repo, g.policy.MinReleaseAge, ref,
+			)
+		}
+	} else {
+		release, _, err := g.client.Repositories.GetLatestRelease(ctx, owner, repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest release: %w", err)
+		}
+		version = trimReleaseVersion(*release.TagName, ref)
 	}
 
 	result := fmt.Sprintf("%s@%s", name, version)
 	return result, nil
+}
+
+func (g *Actions) listReleases(ctx context.Context, owner, repo string) ([]*github.RepositoryRelease, error) {
+	opts := &github.ListOptions{PerPage: 100}
+	var all []*github.RepositoryRelease
+	for {
+		releases, resp, err := g.client.Repositories.ListReleases(ctx, owner, repo, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list releases: %w", err)
+		}
+		all = append(all, releases...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	return all, nil
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {

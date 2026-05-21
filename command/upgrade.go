@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
@@ -33,10 +34,11 @@ FLAGS
 `
 
 type UpgradeCommand struct {
-	flagConcurrency int64
-	flagParser      string
-	flagOut         string
-	flagPin         bool
+	flagConcurrency   int64
+	flagParser        string
+	flagOut           string
+	flagPin           bool
+	flagMinReleaseAge time.Duration
 }
 
 func (c *UpgradeCommand) Desc() string {
@@ -56,6 +58,14 @@ func (c *UpgradeCommand) Flags() *flag.FlagSet {
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions")
 
+	minReleaseAge, err := resolver.MinReleaseAgeFromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(2)
+	}
+	f.DurationVar(&c.flagMinReleaseAge, "min-release-age", minReleaseAge,
+		"minimum age of GitHub Actions commit/release before upgrade (0=off); also RATCHET_MIN_RELEASE_AGE")
+
 	return f
 }
 
@@ -70,7 +80,9 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	res, err := resolver.NewDefaultResolver(ctx)
+	res, err := resolver.NewDefaultResolver(ctx, resolver.Policy{
+		MinReleaseAge: c.flagMinReleaseAge,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}

@@ -12,7 +12,7 @@ func TestActions_Resolve(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	resolver, err := NewActions(ctx)
+	resolver, err := NewActions(ctx, Policy{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestActions_LatestVersion(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	resolver, err := NewActions(ctx)
+	resolver, err := NewActions(ctx, Policy{})
 	if err != nil {
 		t.Fatal(err)
 	}

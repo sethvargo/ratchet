@@ -92,6 +92,86 @@ runs:
 			},
 		},
 		{
+			name: "parallel_steps",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'actions/checkout@v3'
+      - parallel:
+          - name: Set up Docker Buildx
+            uses: 'docker/setup-buildx-action@v4'
+          - name: Login to Registry
+            uses: 'docker/login-action@v3'
+      - uses: 'actions/upload-artifact@v4'
+`,
+			exp: []string{
+				"actions://actions/checkout@v3",
+				"actions://actions/upload-artifact@v4",
+				"actions://docker/login-action@v3",
+				"actions://docker/setup-buildx-action@v4",
+			},
+		},
+		{
+			name: "parallel_steps_composite",
+			in: `
+runs:
+  using: 'composite'
+  steps:
+    - uses: 'actions/checkout@v3'
+    - parallel:
+        - uses: 'actions/setup-node@v4'
+        - uses: 'actions/setup-python@v5'
+`,
+			exp: []string{
+				"actions://actions/checkout@v3",
+				"actions://actions/setup-node@v4",
+				"actions://actions/setup-python@v5",
+			},
+		},
+		{
+			name: "parallel_mixed",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - parallel:
+          - uses: 'actions/checkout@v3'
+          - uses: 'docker://ubuntu:20.04'
+      - uses: 'actions/upload-artifact@v4'
+      - parallel:
+          - uses: 'actions/cache@v4'
+`,
+			exp: []string{
+				"actions://actions/cache@v4",
+				"actions://actions/checkout@v3",
+				"actions://actions/upload-artifact@v4",
+				"container://ubuntu:20.04",
+			},
+		},
+		{
+			name: "parallel_with_background_and_wait",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - name: Start service
+        uses: 'docker://redis:7'
+        background: true
+      - parallel:
+          - uses: 'actions/checkout@v3'
+          - uses: 'actions/setup-node@v4'
+      - wait-all
+      - uses: 'actions/upload-artifact@v4'
+`,
+			exp: []string{
+				"actions://actions/checkout@v3",
+				"actions://actions/setup-node@v4",
+				"actions://actions/upload-artifact@v4",
+				"container://redis:7",
+			},
+		},
+		{
 			name: "ignores_interpolated",
 			in: `
 jobs:

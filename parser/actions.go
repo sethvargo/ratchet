@@ -35,6 +35,40 @@ func (a *Actions) Parse(nodes map[string]*yaml.Node) (*RefsList, error) {
 	return &refs, nil
 }
 
+func (a *Actions) processStep(refs *RefsList, step *yaml.Node) {
+	if step.Kind != yaml.MappingNode {
+		return
+	}
+
+	for k, property := range step.Content {
+		if property.Value == "uses" {
+			uses := step.Content[k+1]
+
+			if strings.Contains(uses.Value, "${{") {
+				continue
+			}
+
+			switch {
+			case strings.HasPrefix(uses.Value, "docker://"):
+				ref := resolver.NormalizeContainerRef(uses.Value)
+				refs.Add(ref, uses)
+			case strings.Contains(uses.Value, "@"):
+				ref := resolver.NormalizeActionsRef(uses.Value)
+				refs.Add(ref, uses)
+			}
+		}
+
+		if property.Value == "parallel" && len(step.Content) > k+1 {
+			parallelSteps := step.Content[k+1]
+			if parallelSteps.Kind == yaml.SequenceNode {
+				for _, innerStep := range parallelSteps.Content {
+					a.processStep(refs, innerStep)
+				}
+			}
+		}
+	}
+}
+
 func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 	if node == nil {
 		return nil
@@ -75,31 +109,7 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 					if runMap.Value == "steps" {
 						steps := runs.Content[j+1]
 						for _, step := range steps.Content {
-							if step.Kind != yaml.MappingNode {
-								continue
-							}
-
-							for k, property := range step.Content {
-								if property.Value == "uses" {
-									uses := step.Content[k+1]
-									// Ignore interpolations, since we cannot resolve most of
-									// their values.
-									if strings.Contains(uses.Value, "${{") {
-										continue
-									}
-
-									// Only include references to remote workflows. This could be
-									// a local workflow, which should not be pinned.
-									switch {
-									case strings.HasPrefix(uses.Value, "docker://"):
-										ref := resolver.NormalizeContainerRef(uses.Value)
-										refs.Add(ref, uses)
-									case strings.Contains(uses.Value, "@"):
-										ref := resolver.NormalizeActionsRef(uses.Value)
-										refs.Add(ref, uses)
-									}
-								}
-							}
+							a.processStep(refs, step)
 						}
 					}
 				}
@@ -170,32 +180,7 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 						if sub.Value == "steps" {
 							steps := jobMap.Content[j+1]
 							for _, step := range steps.Content {
-								if step.Kind != yaml.MappingNode {
-									continue
-								}
-
-								for k, property := range step.Content {
-									if property.Value == "uses" {
-										uses := step.Content[k+1]
-
-										// Ignore interpolations, since we cannot resolve most of
-										// their values.
-										if strings.Contains(uses.Value, "${{") {
-											continue
-										}
-
-										// Only include references to remote workflows. This could be
-										// a local workflow, which should not be pinned.
-										switch {
-										case strings.HasPrefix(uses.Value, "docker://"):
-											ref := resolver.NormalizeContainerRef(uses.Value)
-											refs.Add(ref, uses)
-										case strings.Contains(uses.Value, "@"):
-											ref := resolver.NormalizeActionsRef(uses.Value)
-											refs.Add(ref, uses)
-										}
-									}
-								}
+								a.processStep(refs, step)
 							}
 						}
 

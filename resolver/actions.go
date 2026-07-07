@@ -130,7 +130,16 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 				// No tags match the reference format - do not upgrade.
 				return value, nil
 			}
-			version = versionWithPrecision(version, ref)
+			trimmed := versionWithPrecision(version, ref)
+			if trimmed != version {
+				ok, err := g.refExists(ctx, owner, repo, trimmed)
+				if err != nil {
+					return "", fmt.Errorf("failed to fetch fallback ref %s: %w", trimmed, err)
+				}
+				if ok {
+					version = trimmed
+				}
+			}
 		}
 	}
 

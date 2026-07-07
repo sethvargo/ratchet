@@ -120,6 +120,9 @@ func TestActions_LatestVersion_latestReleaseRef404Fallback(t *testing.T) {
 	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/codeql-bundle-v2", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
 	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/v4", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ref":"refs/tags/v4","object":{"type":"commit","sha":"9999999999999999999999999999999999999999"}}`)
+	})
 	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/matching-refs/tags/v", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `[
 			{"ref":"refs/tags/v1","object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
@@ -170,6 +173,46 @@ func TestActions_LatestVersion_latestReleaseRef404Fallback(t *testing.T) {
 				t.Errorf("expected %q, got %q", tc.exp, got)
 			}
 		})
+	}
+}
+
+func TestActions_LatestVersion_latestReleaseRef404FallbackKeepsConcreteTag(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v3", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"codeql-bundle-v2.25.6"}`)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/codeql-bundle-v2", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/v4", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/matching-refs/tags/v", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `[
+			{"ref":"refs/tags/v3.30.4","object":{"type":"commit","sha":"dddddddddddddddddddddddddddddddddddddddd"}},
+			{"ref":"refs/tags/v4.0.0","object":{"type":"commit","sha":"ffffffffffffffffffffffffffffffffffffffff"}}
+		]`)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver := &Actions{client: client}
+
+	got, err := resolver.LatestVersion(context.Background(), "github/codeql-action/init@v3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := "github/codeql-action/init@v4.0.0"; got != exp {
+		t.Errorf("expected %q, got %q", exp, got)
 	}
 }
 

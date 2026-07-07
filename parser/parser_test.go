@@ -404,6 +404,307 @@ jobs:
 	}
 }
 
+func TestCodeQLActionInitV3Flows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	sha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	res, err := resolver.NewTest(map[string]*resolver.TestResult{
+		"actions://actions/checkout@v3": {
+			Resolved: "actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		},
+		"actions://github/codeql-action/init@v3": {
+			Resolved: "github/codeql-action/init@" + sha,
+		},
+		"actions://github/codeql-action/analyze@v3": {
+			Resolved: "github/codeql-action/analyze@" + sha,
+		},
+	}, map[string]*resolver.TestResult{
+		"actions://actions/checkout@v3": {
+			Resolved: "actions://actions/checkout@v3",
+		},
+		"actions://github/codeql-action/init@v3": {
+			Resolved: "actions://github/codeql-action/init@v3",
+		},
+		"actions://github/codeql-action/analyze@v3": {
+			Resolved: "actions://github/codeql-action/analyze@v3",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	par := new(Actions)
+
+	cases := []struct {
+		name string
+		in   string
+		run  func(map[string]*yaml.Node) error
+		exp  string
+	}{
+		{
+			name: "pin",
+			in: `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+`,
+			run: func(nodes map[string]*yaml.Node) error {
+				return Pin(ctx, res, par, nodes, 2)
+			},
+			exp: `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # ratchet:actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/analyze@v3
+`,
+		},
+		{
+			name: "update",
+			in: `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@cccccccccccccccccccccccccccccccccccccccc # ratchet:actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@dddddddddddddddddddddddddddddddddddddddd # ratchet:github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee # ratchet:github/codeql-action/analyze@v3
+`,
+			run: func(nodes map[string]*yaml.Node) error {
+				if err := Unpin(ctx, nodes); err != nil {
+					return err
+				}
+				return Pin(ctx, res, par, nodes, 2)
+			},
+			exp: `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # ratchet:actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/analyze@v3
+`,
+		},
+		{
+			name: "upgrade",
+			in: `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+`,
+			run: func(nodes map[string]*yaml.Node) error {
+				if err := Upgrade(ctx, res, par, nodes, 2); err != nil {
+					return err
+				}
+				return Pin(ctx, res, par, nodes, 2)
+			},
+			exp: `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # ratchet:actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/analyze@v3
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := helperStringToYAML(t, tc.in)
+			nodes := map[string]*yaml.Node{
+				"test.yml": m,
+			}
+
+			if err := tc.run(nodes); err != nil {
+				t.Fatal(err)
+			}
+
+			if got, want := helperYAMLToString(t, m), strings.TrimSpace(tc.exp); got != want {
+				t.Errorf("expected \n\n%s\n\nto be\n\n%s\n\n", got, want)
+			}
+		})
+	}
+}
+
+func TestCodeQLActionInitV3Lifecycle(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	codeQLSHA1 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	codeQLSHA2 := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	checkoutSHA1 := "cccccccccccccccccccccccccccccccccccccccc"
+	checkoutSHA2 := "dddddddddddddddddddddddddddddddddddddddd"
+
+	res, err := resolver.NewTest(map[string]*resolver.TestResult{
+		"actions://actions/checkout@v3": {
+			Resolved: "actions/checkout@" + checkoutSHA1,
+		},
+		"actions://github/codeql-action/init@v3": {
+			Resolved: "github/codeql-action/init@" + codeQLSHA1,
+		},
+		"actions://github/codeql-action/analyze@v3": {
+			Resolved: "github/codeql-action/analyze@" + codeQLSHA1,
+		},
+		"actions://actions/checkout@v4": {
+			Resolved: "actions/checkout@" + checkoutSHA2,
+		},
+		"actions://github/codeql-action/init@v4": {
+			Resolved: "github/codeql-action/init@" + codeQLSHA2,
+		},
+		"actions://github/codeql-action/analyze@v4": {
+			Resolved: "github/codeql-action/analyze@" + codeQLSHA2,
+		},
+	}, map[string]*resolver.TestResult{
+		"actions://actions/checkout@v3": {
+			Resolved: "actions://actions/checkout@v4",
+		},
+		"actions://github/codeql-action/init@v3": {
+			Resolved: "actions://github/codeql-action/init@v4",
+		},
+		"actions://github/codeql-action/analyze@v3": {
+			Resolved: "actions://github/codeql-action/analyze@v4",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	par := new(Actions)
+	m := helperStringToYAML(t, `
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+`)
+	nodes := map[string]*yaml.Node{
+		"test.yml": m,
+	}
+
+	if err := Pin(ctx, res, par, nodes, 2); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := helperYAMLToString(t, m), strings.TrimSpace(`
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@cccccccccccccccccccccccccccccccccccccccc # ratchet:actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/analyze@v3
+`); got != want {
+		t.Errorf("expected pinned YAML \n\n%s\n\nto be\n\n%s\n\n", got, want)
+	}
+
+	if err := Unpin(ctx, nodes); err != nil {
+		t.Fatal(err)
+	}
+	if err := Pin(ctx, res, par, nodes, 2); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := helperYAMLToString(t, m), strings.TrimSpace(`
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@cccccccccccccccccccccccccccccccccccccccc # ratchet:actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/init@v3
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # ratchet:github/codeql-action/analyze@v3
+`); got != want {
+		t.Errorf("expected updated YAML \n\n%s\n\nto be\n\n%s\n\n", got, want)
+	}
+
+	if err := Unpin(ctx, nodes); err != nil {
+		t.Fatal(err)
+	}
+	if err := Upgrade(ctx, res, par, nodes, 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := Pin(ctx, res, par, nodes, 2); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := helperYAMLToString(t, m), strings.TrimSpace(`
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@dddddddddddddddddddddddddddddddddddddddd # ratchet:actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # ratchet:github/codeql-action/init@v4
+      - run: |
+          echo "hello"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # ratchet:github/codeql-action/analyze@v4
+`); got != want {
+		t.Errorf("expected upgraded YAML \n\n%s\n\nto be\n\n%s\n\n", got, want)
+	}
+}
+
 func TestUnpin(t *testing.T) {
 	t.Parallel()
 

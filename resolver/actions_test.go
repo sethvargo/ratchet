@@ -77,12 +77,12 @@ func TestActions_LatestVersion(t *testing.T) {
 		{
 			name: "tag-name-change",
 			in:   "github/codeql-action/init@v1",
-			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+`,
+			exp:  `github/codeql-action/init@v[0-9]+`,
 		},
 		{
 			name: "tag-name-change-and-minor-precision",
 			in:   "github/codeql-action/init@v1.0",
-			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+`,
+			exp:  `github/codeql-action/init@v[0-9]+\.[0-9]+`,
 		},
 		{
 			name: "tag-name-change-and-patch-precision",

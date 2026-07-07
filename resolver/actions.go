@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,9 @@ var (
 	ActionsBaseURL   = os.Getenv("ACTIONS_BASE_URL")
 	ActionsToken     = coalesce(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
+
+	// semverishTagRegex matches action-style version tags, like "v3.30.4".
+	semverishTagRegex = regexp.MustCompile(`^v\d+(\.\d+)*$`)
 )
 
 func NormalizeActionsRef(in string) string {
@@ -107,18 +112,54 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	if path != "" {
 		name = name + "/" + path
 	}
-	version := *release.TagName
-	if strings.HasPrefix(ref, "v") {
-		refPrecision := strings.Count(githubRef.ref, ".")
-		for strings.Count(version, ".") < refPrecision {
-			version += ".0"
+	version := versionWithPrecision(*release.TagName, ref)
+
+	// Only fall back when the latest-release-derived tag is confirmed missing.
+	if strings.HasPrefix(ref, "v") && !semverishTagRegex.MatchString(version) {
+		ok, err := g.refExists(ctx, owner, repo, version)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
 		}
-		versionParts := strings.Split(version, ".")
-		version = strings.Join(versionParts[:refPrecision+1], ".")
+		if !ok {
+			tags, err := g.listVersionTags(ctx, owner, repo)
+			if err != nil {
+				return "", fmt.Errorf("failed to list tags: %w", err)
+			}
+			version = highestVersionTag(tags, ref)
+			if version == "" {
+				// No tags match the reference format - do not upgrade.
+				return value, nil
+			}
+			version = versionWithPrecision(version, ref)
+		}
 	}
 
 	result := fmt.Sprintf("%s@%s", name, version)
 	return result, nil
+}
+
+func versionWithPrecision(version, ref string) string {
+	if !strings.HasPrefix(ref, "v") {
+		return version
+	}
+
+	refPrecision := strings.Count(ref, ".")
+	for strings.Count(version, ".") < refPrecision {
+		version += ".0"
+	}
+	versionParts := strings.Split(version, ".")
+	return strings.Join(versionParts[:refPrecision+1], ".")
+}
+
+func (g *Actions) refExists(ctx context.Context, owner, repo, ref string) (bool, error) {
+	_, resp, err := g.client.Git.GetRef(ctx, owner, repo, "tags/"+ref)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func ParseActionRef(s string) (*GitHubRef, error) {
@@ -155,6 +196,84 @@ type GitHubRef struct {
 	repo  string
 	path  string
 	ref   string
+}
+
+// listVersionTags returns all "v"-prefixed tag names, following pagination.
+func (g *Actions) listVersionTags(ctx context.Context, owner, repo string) ([]string, error) {
+	var tags []string
+	opts := &github.ReferenceListOptions{
+		Ref:         "tags/v",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	for {
+		refs, resp, err := g.client.Git.ListMatchingRefs(ctx, owner, repo, opts)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range refs {
+			tags = append(tags, strings.TrimPrefix(r.GetRef(), "refs/tags/"))
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	return tags, nil
+}
+
+// highestVersionTag returns the highest tag matching the input ref's precision.
+func highestVersionTag(tags []string, ref string) string {
+	best := ""
+	var bestParts []int
+	for _, tag := range tags {
+		if !semverishTagRegex.MatchString(tag) {
+			continue
+		}
+		if versionWithPrecision(tag, ref) != ref {
+			continue
+		}
+		parts := versionParts(tag)
+		cmp := compareVersionParts(parts, bestParts)
+		if best == "" || cmp > 0 || (cmp == 0 && len(parts) > len(bestParts)) {
+			best = tag
+			bestParts = parts
+		}
+	}
+	return best
+}
+
+// versionParts parses a "v"-prefixed version tag.
+func versionParts(tag string) []int {
+	segments := strings.Split(strings.TrimPrefix(tag, "v"), ".")
+	parts := make([]int, 0, len(segments))
+	for _, s := range segments {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return nil
+		}
+		parts = append(parts, i)
+	}
+	return parts
+}
+
+// compareVersionParts compares numeric version segments.
+func compareVersionParts(a, b []int) int {
+	for i := 0; i < len(a) || i < len(b); i++ {
+		av, bv := 0, 0
+		if i < len(a) {
+			av = a[i]
+		}
+		if i < len(b) {
+			bv = b[i]
+		}
+		switch {
+		case av > bv:
+			return 1
+		case av < bv:
+			return -1
+		}
+	}
+	return 0
 }
 
 func coalesce(s ...string) string {

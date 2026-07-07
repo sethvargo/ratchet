@@ -17,50 +17,42 @@ func TestHighestVersionTag(t *testing.T) {
 	cases := []struct {
 		name string
 		in   []string
-		ref  string
 		exp  string
 	}{
 		{
 			name: "empty",
 			in:   nil,
-			ref:  "v3",
 			exp:  "",
 		},
 		{
 			name: "no_matching",
 			in:   []string{"codeql-bundle-v2.25.6", "vNext", "v1.2.3-alpha"},
-			ref:  "v3",
 			exp:  "",
 		},
 		{
 			name: "mixed",
 			in:   []string{"v1", "v2.1.1", "v3", "v3.30.4", "vNext", "codeql-bundle-v2.25.6"},
-			ref:  "v3",
 			exp:  "v3.30.4",
 		},
 		{
 			name: "numeric_not_lexical",
 			in:   []string{"v9.9.9", "v10.0.0"},
-			ref:  "v10",
 			exp:  "v10.0.0",
 		},
 		{
 			name: "precision_tiebreak",
 			in:   []string{"v3", "v3.0", "v3.0.0"},
-			ref:  "v3",
 			exp:  "v3.0.0",
 		},
 		{
-			name: "same_major_only",
+			name: "crosses_major",
 			in:   []string{"v3", "v3.30.4", "v4.0.0"},
-			ref:  "v3",
-			exp:  "v3.30.4",
+			exp:  "v4.0.0",
 		},
 		{
-			name: "same_minor_only",
+			name: "crosses_minor",
 			in:   []string{"v3.30", "v3.30.4", "v3.31.0"},
-			ref:  "v3.30",
-			exp:  "v3.30.4",
+			exp:  "v3.31.0",
 		},
 	}
 
@@ -68,7 +60,7 @@ func TestHighestVersionTag(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := highestVersionTag(tc.in, tc.ref); got != tc.exp {
+			if got := highestVersionTag(tc.in); got != tc.exp {
 				t.Errorf("expected %q, got %q", tc.exp, got)
 			}
 		})
@@ -155,12 +147,12 @@ func TestActions_LatestVersion_latestReleaseRef404Fallback(t *testing.T) {
 		{
 			name: "init",
 			in:   "github/codeql-action/init@v3",
-			exp:  "github/codeql-action/init@v3",
+			exp:  "github/codeql-action/init@v4",
 		},
 		{
 			name: "analyze",
 			in:   "github/codeql-action/analyze@v3",
-			exp:  "github/codeql-action/analyze@v3",
+			exp:  "github/codeql-action/analyze@v4",
 		},
 	}
 
@@ -173,7 +165,7 @@ func TestActions_LatestVersion_latestReleaseRef404Fallback(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// The chosen v3.* tag is trimmed back to the input precision.
+			// The chosen highest tag is trimmed back to the input precision.
 			if got != tc.exp {
 				t.Errorf("expected %q, got %q", tc.exp, got)
 			}

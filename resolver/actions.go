@@ -125,7 +125,7 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 			if err != nil {
 				return "", fmt.Errorf("failed to list tags: %w", err)
 			}
-			version = highestVersionTag(tags, ref)
+			version = highestVersionTag(tags)
 			if version == "" {
 				// No tags match the reference format - do not upgrade.
 				return value, nil
@@ -221,15 +221,12 @@ func (g *Actions) listVersionTags(ctx context.Context, owner, repo string) ([]st
 	return tags, nil
 }
 
-// highestVersionTag returns the highest tag matching the input ref's precision.
-func highestVersionTag(tags []string, ref string) string {
+// highestVersionTag returns the highest action-style version tag.
+func highestVersionTag(tags []string) string {
 	best := ""
 	var bestParts []int
 	for _, tag := range tags {
 		if !semverishTagRegex.MatchString(tag) {
-			continue
-		}
-		if versionWithPrecision(tag, ref) != ref {
 			continue
 		}
 		parts := versionParts(tag)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,8 @@ var (
 	ActionsBaseURL   = os.Getenv("ACTIONS_BASE_URL")
 	ActionsToken     = coalesce(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
+
+	actionVersionRegex = regexp.MustCompile(`v\d+(?:\.\d+){0,2}`)
 )
 
 func NormalizeActionsRef(in string) string {
@@ -110,13 +113,16 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	}
 	version := versionWithPrecision(*release.TagName, ref)
 
-	// Only fall back when the latest-release-derived tag is confirmed missing.
 	if strings.HasPrefix(ref, "v") && !isActionVersionTag(version) {
-		ok, err := g.refExists(ctx, owner, repo, version)
-		if err != nil {
-			return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
+		shouldFallback := mismatchedActionMajor(version, ref)
+		if !shouldFallback {
+			ok, err := g.refExists(ctx, owner, repo, version)
+			if err != nil {
+				return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
+			}
+			shouldFallback = !ok
 		}
-		if !ok {
+		if shouldFallback {
 			tags, err := g.listVersionTags(ctx, owner, repo)
 			if err != nil {
 				return "", fmt.Errorf("failed to list tags: %w", err)
@@ -243,6 +249,21 @@ func highestVersionTag(tags []string) string {
 
 func isActionVersionTag(tag string) bool {
 	return semver.IsValid(tag) && semver.Prerelease(tag) == "" && semver.Build(tag) == ""
+}
+
+func mismatchedActionMajor(version, ref string) bool {
+	versionMajor := actionVersionMajor(version)
+	refMajor := semver.Major(ref)
+	return versionMajor != "" && refMajor != "" && versionMajor != refMajor
+}
+
+func actionVersionMajor(version string) string {
+	for _, candidate := range actionVersionRegex.FindAllString(version, -1) {
+		if semver.IsValid(candidate) {
+			return semver.Major(candidate)
+		}
+	}
+	return ""
 }
 
 func versionPrecision(tag string) int {

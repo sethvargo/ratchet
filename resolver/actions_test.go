@@ -87,7 +87,7 @@ func TestActions_LatestVersion(t *testing.T) {
 		{
 			name: "tag-name-change-and-patch-precision",
 			in:   "github/codeql-action/init@v1.0.1",
-			exp:  `github/codeql-action/init@codeql-bundle-v[0-9]+\.[0-9]+\.[0-9]+`,
+			exp:  `github/codeql-action/init@v[0-9]+\.[0-9]+\.[0-9]+`,
 		},
 		{
 			name: "floating-tag-with-patch-precision",

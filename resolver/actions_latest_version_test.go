@@ -72,12 +72,12 @@ func TestHighestVersionTag(t *testing.T) {
 	}
 }
 
-func TestActions_LatestVersion_latestReleaseRefExistsDoesNotFallback(t *testing.T) {
+func TestActions_LatestVersion_latestReleaseRefExistsWithMatchingMajorDoesNotFallback(t *testing.T) {
 	t.Parallel()
 
 	tagListCalled := false
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v3", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v2", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
 	})
 	mux.HandleFunc("/api/v3/repos/github/codeql-action/releases/latest", func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func TestActions_LatestVersion_latestReleaseRefExistsDoesNotFallback(t *testing.
 	}
 	resolver := &Actions{client: client}
 
-	got, err := resolver.LatestVersion(context.Background(), "github/codeql-action/init@v3")
+	got, err := resolver.LatestVersion(context.Background(), "github/codeql-action/init@v2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,6 +108,75 @@ func TestActions_LatestVersion_latestReleaseRefExistsDoesNotFallback(t *testing.
 	}
 	if tagListCalled {
 		t.Fatal("expected tag list fallback not to be called")
+	}
+}
+
+func TestActions_LatestVersion_latestReleaseRefExistsMismatchedMajorFallback(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v3", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v3.28.0", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"codeql-bundle-v2.25.6"}`)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/codeql-bundle-v2", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ref":"refs/tags/codeql-bundle-v2","object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/codeql-bundle-v2.25.6", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ref":"refs/tags/codeql-bundle-v2.25.6","object":{"type":"commit","sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}`)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/tags/v4", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ref":"refs/tags/v4","object":{"type":"commit","sha":"cccccccccccccccccccccccccccccccccccccccc"}}`)
+	})
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/matching-refs/tags/v", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `[
+			{"ref":"refs/tags/v3.30.4","object":{"type":"commit","sha":"dddddddddddddddddddddddddddddddddddddddd"}},
+			{"ref":"refs/tags/v4.0.0","object":{"type":"commit","sha":"ffffffffffffffffffffffffffffffffffffffff"}}
+		]`)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver := &Actions{client: client}
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "major",
+			in:   "github/codeql-action/init@v3",
+			exp:  "github/codeql-action/init@v4",
+		},
+		{
+			name: "patch",
+			in:   "github/codeql-action/init@v3.28.0",
+			exp:  "github/codeql-action/init@v4.0.0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := resolver.LatestVersion(context.Background(), tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.exp {
+				t.Errorf("expected %q, got %q", tc.exp, got)
+			}
+		})
 	}
 }
 
@@ -226,7 +295,7 @@ func TestActions_LatestVersion_latestReleaseRefNon404DoesNotFallback(t *testing.
 
 	tagListCalled := false
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v3", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v3/repos/github/codeql-action/git/ref/heads/v2", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
 	})
 	mux.HandleFunc("/api/v3/repos/github/codeql-action/releases/latest", func(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +317,7 @@ func TestActions_LatestVersion_latestReleaseRefNon404DoesNotFallback(t *testing.
 	}
 	resolver := &Actions{client: client}
 
-	_, err = resolver.LatestVersion(context.Background(), "github/codeql-action/init@v3")
+	_, err = resolver.LatestVersion(context.Background(), "github/codeql-action/init@v2")
 	if err == nil {
 		t.Fatal("expected error")
 	}

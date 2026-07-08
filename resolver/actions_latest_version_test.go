@@ -59,6 +59,41 @@ func TestHighestVersionTag(t *testing.T) {
 			in:   []string{"v3.30", "v3.30.4", "v3.31.0"},
 			exp:  "v3.31.0",
 		},
+		{
+			name: "loose_date_style",
+			in:   []string{"v2024.06.30", "v2024.07.01"},
+			exp:  "v2024.07.01",
+		},
+		{
+			name: "loose_four_part",
+			in:   []string{"v1.2.3", "v1.2.3.4"},
+			exp:  "v1.2.3.4",
+		},
+		{
+			name: "loose_four_part_zero",
+			in:   []string{"v2.0.0", "v2.0.0.1"},
+			exp:  "v2.0.0.1",
+		},
+		{
+			name: "loose_leading_zero_major",
+			in:   []string{"v01"},
+			exp:  "v01",
+		},
+		{
+			name: "loose_leading_zero_minor",
+			in:   []string{"v1.02.3"},
+			exp:  "v1.02.3",
+		},
+		{
+			name: "loose_leading_zero_patch",
+			in:   []string{"v1.2.03"},
+			exp:  "v1.2.03",
+		},
+		{
+			name: "semver_date_style",
+			in:   []string{"v2024.7.1"},
+			exp:  "v2024.7.1",
+		},
 	}
 
 	for _, tc := range cases {
@@ -69,6 +104,44 @@ func TestHighestVersionTag(t *testing.T) {
 				t.Errorf("expected %q, got %q", tc.exp, got)
 			}
 		})
+	}
+}
+
+func TestActions_LatestVersion_latestReleaseRef404FallbackLooseNumericTag(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/repos/example/date-action/git/ref/heads/v2023.06.01", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/example/date-action/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"release-2024"}`)
+	})
+	mux.HandleFunc("/api/v3/repos/example/date-action/git/ref/tags/release-2024.0.0", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/example/date-action/git/matching-refs/tags/v", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `[
+			{"ref":"refs/tags/v1.2.3.4","object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+			{"ref":"refs/tags/v2024.06.30","object":{"type":"commit","sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+			{"ref":"refs/tags/v2024.07.01","object":{"type":"commit","sha":"cccccccccccccccccccccccccccccccccccccccc"}}
+		]`)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver := &Actions{client: client}
+
+	got, err := resolver.LatestVersion(context.Background(), "example/date-action@v2023.06.01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := "example/date-action@v2024.07.01"; got != exp {
+		t.Errorf("expected %q, got %q", exp, got)
 	}
 }
 

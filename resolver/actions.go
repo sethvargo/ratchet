@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,8 @@ var (
 	ActionsToken     = coalesce(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
 
-	actionVersionRegex = regexp.MustCompile(`v\d+(?:\.\d+){0,2}`)
+	actionVersionRegex      = regexp.MustCompile(`v\d+(?:\.\d+)*`)
+	looseActionVersionRegex = regexp.MustCompile(`^v\d+(?:\.\d+)*$`)
 )
 
 func NormalizeActionsRef(in string) string {
@@ -112,8 +114,9 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 		name = name + "/" + path
 	}
 	version := versionWithPrecision(*release.TagName, ref)
+	_, versionIsActionTag := parseActionVersionTag(version)
 
-	if strings.HasPrefix(ref, "v") && !isActionVersionTag(version) {
+	if strings.HasPrefix(ref, "v") && !versionIsActionTag {
 		shouldFallback := mismatchedActionMajor(version, ref)
 		if !shouldFallback {
 			ok, err := g.refExists(ctx, owner, repo, version)
@@ -234,40 +237,97 @@ func (g *Actions) listVersionTags(ctx context.Context, owner, repo string) ([]st
 
 // highestVersionTag returns the highest action-style version tag.
 func highestVersionTag(tags []string) string {
-	best := ""
+	var best actionVersionTag
 	for _, tag := range tags {
-		if !isActionVersionTag(tag) {
+		candidate, ok := parseActionVersionTag(tag)
+		if !ok {
 			continue
 		}
-		cmp := semver.Compare(tag, best)
-		if best == "" || cmp > 0 || (cmp == 0 && versionPrecision(tag) > versionPrecision(best)) {
-			best = tag
+		cmp := 1
+		if best.tag != "" {
+			cmp = compareActionVersions(candidate, best)
+		}
+		if best.tag == "" || cmp > 0 || (cmp == 0 && candidate.precision() > best.precision()) {
+			best = candidate
 		}
 	}
-	return best
+	return best.tag
 }
 
-func isActionVersionTag(tag string) bool {
-	return semver.IsValid(tag) && semver.Prerelease(tag) == "" && semver.Build(tag) == ""
+type actionVersionTag struct {
+	tag    string
+	parts  []int
+	semver bool
+}
+
+func parseActionVersionTag(tag string) (actionVersionTag, bool) {
+	if !looseActionVersionRegex.MatchString(tag) {
+		return actionVersionTag{}, false
+	}
+	return actionVersionTag{
+		tag:    tag,
+		parts:  versionParts(tag),
+		semver: semver.IsValid(tag),
+	}, true
+}
+
+func (v actionVersionTag) precision() int {
+	return len(v.parts) - 1
+}
+
+func compareActionVersions(a, b actionVersionTag) int {
+	if a.semver && b.semver {
+		return semver.Compare(a.tag, b.tag)
+	}
+	return compareVersionParts(a.parts, b.parts)
 }
 
 func mismatchedActionMajor(version, ref string) bool {
 	versionMajor := actionVersionMajor(version)
-	refMajor := semver.Major(ref)
+	refMajor := actionVersionMajor(ref)
 	return versionMajor != "" && refMajor != "" && versionMajor != refMajor
 }
 
 func actionVersionMajor(version string) string {
 	for _, candidate := range actionVersionRegex.FindAllString(version, -1) {
-		if semver.IsValid(candidate) {
-			return semver.Major(candidate)
+		v, ok := parseActionVersionTag(candidate)
+		if ok && len(v.parts) > 0 {
+			return fmt.Sprintf("v%d", v.parts[0])
 		}
 	}
 	return ""
 }
 
-func versionPrecision(tag string) int {
-	return strings.Count(tag, ".")
+func versionParts(tag string) []int {
+	segments := strings.Split(strings.TrimPrefix(tag, "v"), ".")
+	parts := make([]int, 0, len(segments))
+	for _, s := range segments {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return nil
+		}
+		parts = append(parts, i)
+	}
+	return parts
+}
+
+func compareVersionParts(a, b []int) int {
+	for i := 0; i < len(a) || i < len(b); i++ {
+		av, bv := 0, 0
+		if i < len(a) {
+			av = a[i]
+		}
+		if i < len(b) {
+			bv = b[i]
+		}
+		switch {
+		case av > bv:
+			return 1
+		case av < bv:
+			return -1
+		}
+	}
+	return 0
 }
 
 func coalesce(s ...string) string {

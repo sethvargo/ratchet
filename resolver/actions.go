@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/v73/github"
+	"golang.org/x/mod/semver"
 	"golang.org/x/oauth2"
 )
 
@@ -18,9 +17,6 @@ var (
 	ActionsBaseURL   = os.Getenv("ACTIONS_BASE_URL")
 	ActionsToken     = coalesce(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
-
-	// semverishTagRegex matches action-style version tags, like "v3.30.4".
-	semverishTagRegex = regexp.MustCompile(`^v\d+(\.\d+)*$`)
 )
 
 func NormalizeActionsRef(in string) string {
@@ -115,7 +111,7 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	version := versionWithPrecision(*release.TagName, ref)
 
 	// Only fall back when the latest-release-derived tag is confirmed missing.
-	if strings.HasPrefix(ref, "v") && !semverishTagRegex.MatchString(version) {
+	if strings.HasPrefix(ref, "v") && !isActionVersionTag(version) {
 		ok, err := g.refExists(ctx, owner, repo, version)
 		if err != nil {
 			return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
@@ -233,53 +229,24 @@ func (g *Actions) listVersionTags(ctx context.Context, owner, repo string) ([]st
 // highestVersionTag returns the highest action-style version tag.
 func highestVersionTag(tags []string) string {
 	best := ""
-	var bestParts []int
 	for _, tag := range tags {
-		if !semverishTagRegex.MatchString(tag) {
+		if !isActionVersionTag(tag) {
 			continue
 		}
-		parts := versionParts(tag)
-		cmp := compareVersionParts(parts, bestParts)
-		if best == "" || cmp > 0 || (cmp == 0 && len(parts) > len(bestParts)) {
+		cmp := semver.Compare(tag, best)
+		if best == "" || cmp > 0 || (cmp == 0 && versionPrecision(tag) > versionPrecision(best)) {
 			best = tag
-			bestParts = parts
 		}
 	}
 	return best
 }
 
-// versionParts parses a "v"-prefixed version tag.
-func versionParts(tag string) []int {
-	segments := strings.Split(strings.TrimPrefix(tag, "v"), ".")
-	parts := make([]int, 0, len(segments))
-	for _, s := range segments {
-		i, err := strconv.Atoi(s)
-		if err != nil {
-			return nil
-		}
-		parts = append(parts, i)
-	}
-	return parts
+func isActionVersionTag(tag string) bool {
+	return semver.IsValid(tag) && semver.Prerelease(tag) == "" && semver.Build(tag) == ""
 }
 
-// compareVersionParts compares numeric version segments.
-func compareVersionParts(a, b []int) int {
-	for i := 0; i < len(a) || i < len(b); i++ {
-		av, bv := 0, 0
-		if i < len(a) {
-			av = a[i]
-		}
-		if i < len(b) {
-			bv = b[i]
-		}
-		switch {
-		case av > bv:
-			return 1
-		case av < bv:
-			return -1
-		}
-	}
-	return 0
+func versionPrecision(tag string) int {
+	return strings.Count(tag, ".")
 }
 
 func coalesce(s ...string) string {

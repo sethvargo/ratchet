@@ -30,6 +30,11 @@ func TestHighestVersionTag(t *testing.T) {
 			exp:  "",
 		},
 		{
+			name: "ignores_prerelease_and_build_metadata",
+			in:   []string{"v1.2.3-alpha", "v1.2.3+build"},
+			exp:  "",
+		},
+		{
 			name: "mixed",
 			in:   []string{"v1", "v2.1.1", "v3", "v3.30.4", "vNext", "codeql-bundle-v2.25.6"},
 			exp:  "v3.30.4",

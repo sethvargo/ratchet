@@ -20,7 +20,7 @@ var (
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
 
 	actionVersionRegex         = regexp.MustCompile(`^v\d+(\.\d+)*$`)
-	embeddedActionVersionRegex = regexp.MustCompile(`v\d+(\.\d+)*`)
+	embeddedActionVersionRegex = regexp.MustCompile(`(^|[^A-Za-z0-9])(v\d+(\.\d+)*)`)
 )
 
 func NormalizeActionsRef(in string) string {
@@ -262,8 +262,8 @@ func mismatchedActionMajor(version, ref string) bool {
 }
 
 func actionVersionMajor(version string) string {
-	for _, candidate := range embeddedActionVersionRegex.FindAllString(version, -1) {
-		parts := versionParts(candidate)
+	for _, match := range embeddedActionVersionRegex.FindAllStringSubmatch(version, -1) {
+		parts := versionParts(match[2])
 		if len(parts) > 0 {
 			return fmt.Sprintf("v%d", parts[0])
 		}

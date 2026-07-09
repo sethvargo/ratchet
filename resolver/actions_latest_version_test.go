@@ -184,6 +184,45 @@ func TestActions_LatestVersion_latestReleaseRefExistsWithMatchingMajorDoesNotFal
 	}
 }
 
+func TestActions_LatestVersion_latestReleaseRefIgnoresEmbeddedVersionWithoutBoundary(t *testing.T) {
+	t.Parallel()
+
+	tagListCalled := false
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/repos/example/nonstandard/git/ref/heads/v3.0.0", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+	mux.HandleFunc("/api/v3/repos/example/nonstandard/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"rev2-v3.1.0"}`)
+	})
+	mux.HandleFunc("/api/v3/repos/example/nonstandard/git/ref/tags/rev2-v3.1.0", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"ref":"refs/tags/rev2-v3.1.0","object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`)
+	})
+	mux.HandleFunc("/api/v3/repos/example/nonstandard/git/matching-refs/tags/v", func(w http.ResponseWriter, r *http.Request) {
+		tagListCalled = true
+		fmt.Fprint(w, `[]`)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver := &Actions{client: client}
+
+	got, err := resolver.LatestVersion(context.Background(), "example/nonstandard@v3.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := "example/nonstandard@rev2-v3.1.0"; got != exp {
+		t.Errorf("expected %q, got %q", exp, got)
+	}
+	if tagListCalled {
+		t.Fatal("expected tag list fallback not to be called")
+	}
+}
+
 func TestActions_LatestVersion_latestReleaseRefExistsMismatchedMajorFallback(t *testing.T) {
 	t.Parallel()
 

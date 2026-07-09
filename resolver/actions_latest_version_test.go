@@ -223,6 +223,74 @@ func TestActions_LatestVersion_latestReleaseRefIgnoresEmbeddedVersionWithoutBoun
 	}
 }
 
+func TestActions_LatestVersion_latestReleaseRefKeepsValidPrefixedRelease(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name              string
+		ref               string
+		release           string
+		fallback          string
+		expectTagListCall bool
+	}{
+		{
+			name:              "cross-major release newer than bare tag",
+			ref:               "v1.0.0",
+			release:           "release-v2.0.0",
+			fallback:          "v1.5.0",
+			expectTagListCall: true,
+		},
+		{
+			name:              "version-like prefix without ending boundary",
+			ref:               "v2.0.0",
+			release:           "release-v1beta-v2.1.0",
+			fallback:          "v2.0.0",
+			expectTagListCall: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tagListCalled := false
+			mux := http.NewServeMux()
+			mux.HandleFunc("/api/v3/repos/example/prefixed/git/ref/heads/"+tc.ref, func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+			})
+			mux.HandleFunc("/api/v3/repos/example/prefixed/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintf(w, `{"tag_name":%q}`, tc.release)
+			})
+			mux.HandleFunc("/api/v3/repos/example/prefixed/git/ref/tags/"+tc.release, func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintf(w, `{"ref":"refs/tags/%s","object":{"type":"commit","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`, tc.release)
+			})
+			mux.HandleFunc("/api/v3/repos/example/prefixed/git/matching-refs/tags/v", func(w http.ResponseWriter, r *http.Request) {
+				tagListCalled = true
+				fmt.Fprintf(w, `[{"ref":"refs/tags/%s","object":{"type":"commit","sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]`, tc.fallback)
+			})
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+
+			client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resolver := &Actions{client: client}
+
+			got, err := resolver.LatestVersion(context.Background(), "example/prefixed@"+tc.ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if exp := "example/prefixed@" + tc.release; got != exp {
+				t.Errorf("expected %q, got %q", exp, got)
+			}
+			if tagListCalled != tc.expectTagListCall {
+				t.Errorf("expected tag list called to be %t, got %t", tc.expectTagListCall, tagListCalled)
+			}
+		})
+	}
+}
+
 func TestActions_LatestVersion_latestReleaseRefExistsMismatchedMajorFallback(t *testing.T) {
 	t.Parallel()
 

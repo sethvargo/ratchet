@@ -20,7 +20,7 @@ var (
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
 
 	actionVersionRegex         = regexp.MustCompile(`^v\d+(\.\d+)*$`)
-	embeddedActionVersionRegex = regexp.MustCompile(`(^|[^A-Za-z0-9])(v\d+(\.\d+)*)`)
+	embeddedActionVersionRegex = regexp.MustCompile(`(^|[^A-Za-z0-9])(v\d+(\.\d+)*)([^A-Za-z0-9]|$)`)
 )
 
 func NormalizeActionsRef(in string) string {
@@ -115,20 +115,28 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	version := versionWithPrecision(*release.TagName, ref)
 
 	if strings.HasPrefix(ref, "v") && !isActionVersionTag(version) {
-		shouldFallback := mismatchedActionMajor(version, ref)
-		if !shouldFallback {
-			ok, err := g.refExists(ctx, owner, repo, version)
-			if err != nil {
-				return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
-			}
-			shouldFallback = !ok
+		ok, err := g.refExists(ctx, owner, repo, version)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
 		}
-		if shouldFallback {
+		shouldFallback := !ok
+		majorMismatch := mismatchedActionMajor(version, ref)
+		fallbackVersion := ""
+		if shouldFallback || majorMismatch {
 			tags, err := g.listVersionTags(ctx, owner, repo)
 			if err != nil {
 				return "", fmt.Errorf("failed to list tags: %w", err)
 			}
-			version = highestVersionTag(tags)
+			fallbackVersion = highestVersionTag(tags)
+		}
+		if ok && majorMismatch {
+			if compareActionVersions(version, ref) <= 0 && compareActionVersions(fallbackVersion, ref) <= 0 {
+				return value, nil
+			}
+			shouldFallback = compareActionVersions(fallbackVersion, version) > 0
+		}
+		if shouldFallback {
+			version = fallbackVersion
 			if version == "" {
 				// No tags match the reference format - do not upgrade.
 				return value, nil
@@ -262,13 +270,22 @@ func mismatchedActionMajor(version, ref string) bool {
 }
 
 func actionVersionMajor(version string) string {
-	for _, match := range embeddedActionVersionRegex.FindAllStringSubmatch(version, -1) {
-		parts := versionParts(match[2])
-		if len(parts) > 0 {
-			return fmt.Sprintf("v%d", parts[0])
-		}
+	parts := versionParts(embeddedActionVersion(version))
+	if len(parts) > 0 {
+		return fmt.Sprintf("v%d", parts[0])
 	}
 	return ""
+}
+
+func embeddedActionVersion(version string) string {
+	for _, match := range embeddedActionVersionRegex.FindAllStringSubmatch(version, -1) {
+		return match[2]
+	}
+	return ""
+}
+
+func compareActionVersions(a, b string) int {
+	return compareVersionParts(versionParts(embeddedActionVersion(a)), versionParts(embeddedActionVersion(b)))
 }
 
 func versionParts(tag string) []int {

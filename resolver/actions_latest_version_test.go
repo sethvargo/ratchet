@@ -107,6 +107,52 @@ func TestHighestVersionTag(t *testing.T) {
 	}
 }
 
+func TestEmbeddedActionVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "bare",
+			in:   "v3.1.0",
+			exp:  "v3.1.0",
+		},
+		{
+			name: "prefixed",
+			in:   "codeql-bundle-v2.25.6",
+			exp:  "v2.25.6",
+		},
+		{
+			name: "requires_starting_boundary",
+			in:   "rev2-v3.1.0",
+			exp:  "v3.1.0",
+		},
+		{
+			name: "requires_ending_boundary",
+			in:   "release-v1beta-v2.1.0",
+			exp:  "v2.1.0",
+		},
+		{
+			name: "no_version",
+			in:   "release-2024",
+			exp:  "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := embeddedActionVersion(tc.in); got != tc.exp {
+				t.Errorf("expected %q, got %q", tc.exp, got)
+			}
+		})
+	}
+}
+
 func TestActions_LatestVersion_latestReleaseRef404FallbackLooseNumericTag(t *testing.T) {
 	t.Parallel()
 

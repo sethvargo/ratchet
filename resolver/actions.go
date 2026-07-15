@@ -115,47 +115,59 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	version := versionWithPrecision(*release.TagName, ref)
 
 	if strings.HasPrefix(ref, "v") && !isActionVersionTag(version) {
-		ok, err := g.refExists(ctx, owner, repo, version)
+		version, err = g.selectActionVersion(ctx, owner, repo, version, ref)
 		if err != nil {
-			return "", fmt.Errorf("failed to fetch latest release ref %s: %w", version, err)
-		}
-		shouldFallback := !ok
-		majorMismatch := mismatchedActionMajor(version, ref)
-		fallbackVersion := ""
-		if shouldFallback || majorMismatch {
-			tags, err := g.listVersionTags(ctx, owner, repo)
-			if err != nil {
-				return "", fmt.Errorf("failed to list tags: %w", err)
-			}
-			fallbackVersion = highestVersionTag(tags)
-		}
-		if ok && majorMismatch {
-			if compareActionVersions(version, ref) <= 0 && compareActionVersions(fallbackVersion, ref) <= 0 {
-				return value, nil
-			}
-			shouldFallback = compareActionVersions(fallbackVersion, version) > 0
-		}
-		if shouldFallback {
-			version = fallbackVersion
-			if version == "" {
-				// No tags match the reference format - do not upgrade.
-				return value, nil
-			}
-			trimmed := versionWithPrecision(version, ref)
-			if trimmed != version {
-				ok, err := g.refExists(ctx, owner, repo, trimmed)
-				if err != nil {
-					return "", fmt.Errorf("failed to fetch fallback ref %s: %w", trimmed, err)
-				}
-				if ok {
-					version = trimmed
-				}
-			}
+			return "", err
 		}
 	}
 
 	result := fmt.Sprintf("%s@%s", name, version)
 	return result, nil
+}
+
+func (g *Actions) selectActionVersion(ctx context.Context, owner, repo, releaseVersion, ref string) (string, error) {
+	ok, err := g.refExists(ctx, owner, repo, releaseVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch latest release ref %s: %w", releaseVersion, err)
+	}
+
+	shouldFallback := !ok
+	majorMismatch := mismatchedActionMajor(releaseVersion, ref)
+	fallbackVersion := ""
+	if shouldFallback || majorMismatch {
+		tags, err := g.listVersionTags(ctx, owner, repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to list tags: %w", err)
+		}
+		fallbackVersion = highestVersionTag(tags)
+	}
+
+	if ok && majorMismatch {
+		if compareActionVersions(releaseVersion, ref) <= 0 && compareActionVersions(fallbackVersion, ref) <= 0 {
+			return ref, nil
+		}
+		shouldFallback = compareActionVersions(fallbackVersion, releaseVersion) > 0
+	}
+	if !shouldFallback {
+		return releaseVersion, nil
+	}
+	if fallbackVersion == "" {
+		// No tags match the reference format - do not upgrade.
+		return ref, nil
+	}
+
+	trimmed := versionWithPrecision(fallbackVersion, ref)
+	if trimmed == fallbackVersion {
+		return fallbackVersion, nil
+	}
+	ok, err = g.refExists(ctx, owner, repo, trimmed)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch fallback ref %s: %w", trimmed, err)
+	}
+	if ok {
+		return trimmed, nil
+	}
+	return fallbackVersion, nil
 }
 
 func versionWithPrecision(version, ref string) string {
@@ -278,10 +290,11 @@ func actionVersionMajor(version string) string {
 }
 
 func embeddedActionVersion(version string) string {
-	for _, match := range embeddedActionVersionRegex.FindAllStringSubmatch(version, -1) {
-		return match[2]
+	match := embeddedActionVersionRegex.FindStringSubmatch(version)
+	if match == nil {
+		return ""
 	}
-	return ""
+	return match[2]
 }
 
 func compareActionVersions(a, b string) int {

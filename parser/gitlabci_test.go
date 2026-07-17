@@ -34,7 +34,7 @@ variables:
 			exp: nil,
 		},
 		{
-			name: "wrong_image_reference",
+			name: "variable_image_reference",
 			in: `
 test_job:
   stage: lint
@@ -42,8 +42,39 @@ test_job:
     SCAN_DIR: .
   image: $CI_REGISTRY/image:tag
 `,
+			exp: nil,
+		},
+		{
+			name: "bare_variable_image_reference",
+			in: `
+test_job:
+  stage: test
+  image: $GOTESTFMT_IMAGE_LATEST
+`,
+			exp: nil,
+		},
+		{
+			name: "braced_variable_image_reference",
+			in: `
+test_job:
+  stage: test
+  image: ${CI_REGISTRY_IMAGE}:latest
+`,
+			exp: nil,
+		},
+		{
+			name: "variable_service_reference",
+			in: `
+job:
+  image: node:12
+  services:
+    - postgres:14.3
+    - name: $CI_REGISTRY_IMAGE/db:latest
+      alias: db
+`,
 			exp: []string{
-				"container://$CI_REGISTRY/image:tag",
+				"container://node:12",
+				"container://postgres:14.3",
 			},
 		},
 		{

@@ -61,8 +61,7 @@ func (d *Drone) parseOne(refs *RefsList, node *yaml.Node) error {
 
 				for propKey, propValue := range mapPairs(step) {
 					if propKey.Value == "image" {
-						ref := resolver.NormalizeContainerRef(propValue.Value)
-						refs.Add(ref, propValue)
+						addContainerRef(refs, propValue)
 						break
 					}
 				}

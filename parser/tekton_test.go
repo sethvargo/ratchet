@@ -42,6 +42,20 @@ spec:
 			},
 		},
 		{
+			name: "variable_image_reference",
+			in: `
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+   name: testData
+spec:
+    steps:
+      - name: build
+        image: $BUILDER_IMAGE
+`,
+			exp: nil,
+		},
+		{
 			name: "step_field_named_image",
 			in: `
 apiVersion: tekton.dev/v1

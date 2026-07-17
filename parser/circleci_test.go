@@ -23,6 +23,16 @@ executors:
 			exp: nil,
 		},
 		{
+			name: "variable_image_reference",
+			in: `
+executors:
+  my-executor:
+    docker:
+      - image: '$CUSTOM_IMAGE:latest'
+`,
+			exp: nil,
+		},
+		{
 			name: "executor",
 			in: `
 executors:

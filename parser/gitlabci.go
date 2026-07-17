@@ -83,8 +83,7 @@ func (c *GitLabCI) parseOne(refs *RefsList, m *yaml.Node) error {
 						imageRef = image
 					}
 
-					ref := resolver.NormalizeContainerRef(imageRef.Value)
-					refs.Add(ref, imageRef)
+					addContainerRef(refs, imageRef)
 				} else if propKey.Value == "services" {
 					for _, service := range propValue.Content {
 						if service.Kind == yaml.MappingNode {
@@ -97,8 +96,7 @@ func (c *GitLabCI) parseOne(refs *RefsList, m *yaml.Node) error {
 						} else {
 							imageRef = service
 						}
-						ref := resolver.NormalizeContainerRef(imageRef.Value)
-						refs.Add(ref, imageRef)
+						addContainerRef(refs, imageRef)
 					}
 				}
 			}

@@ -10,6 +10,7 @@ import (
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
 	"github.com/braydonk/yaml"
+	"github.com/sethvargo/ratchet/resolver"
 )
 
 type RefsList struct {
@@ -51,6 +52,18 @@ func mapPairs(node *yaml.Node) iter.Seq2[*yaml.Node, *yaml.Node] {
 			}
 		}
 	}
+}
+
+// addContainerRef normalizes the given node's value as a container reference and
+// records it in refs. It skips values that contain a variable interpolation such
+// as "$VAR" or "${VAR}", because their value is only known at runtime and cannot
+// be resolved to a digest. "$" is never valid in a container reference, so its
+// presence unambiguously signals interpolation.
+func addContainerRef(refs *RefsList, node *yaml.Node) {
+	if node == nil || strings.Contains(node.Value, "$") {
+		return
+	}
+	refs.Add(resolver.NormalizeContainerRef(node.Value), node)
 }
 
 // isAbsolute returns true if the given reference is absolute, or false

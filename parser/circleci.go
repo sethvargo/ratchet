@@ -75,8 +75,7 @@ func (c *CircleCI) parseOne(refs *RefsList, node *yaml.Node) error {
 
 							for propKey, propValue := range mapPairs(subMap) {
 								if propKey.Value == "image" {
-									ref := resolver.NormalizeContainerRef(propValue.Value)
-									refs.Add(ref, propValue)
+									addContainerRef(refs, propValue)
 									break
 								}
 							}

@@ -23,6 +23,15 @@ jobs:
 			exp: nil,
 		},
 		{
+			name: "variable_image_reference",
+			in: `
+steps:
+  - name: build
+    image: $PLUGIN_IMAGE
+`,
+			exp: nil,
+		},
+		{
 			name: "steps",
 			in: `
 steps:

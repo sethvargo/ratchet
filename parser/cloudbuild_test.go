@@ -23,6 +23,14 @@ jobs:
 			exp: nil,
 		},
 		{
+			name: "variable_image_reference",
+			in: `
+steps:
+  - name: 'gcr.io/$PROJECT_ID/builder'
+`,
+			exp: nil,
+		},
+		{
 			name: "steps",
 			in: `
 steps:

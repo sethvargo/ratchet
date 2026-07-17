@@ -63,8 +63,7 @@ func (c *CloudBuild) parseOne(refs *RefsList, node *yaml.Node) error {
 
 				for propKey, propValue := range mapPairs(step) {
 					if propKey.Value == "name" {
-						ref := resolver.NormalizeContainerRef(propValue.Value)
-						refs.Add(ref, propValue)
+						addContainerRef(refs, propValue)
 						break
 					}
 				}

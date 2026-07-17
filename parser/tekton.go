@@ -66,8 +66,7 @@ func (d *Tekton) findImages(refs *RefsList, node *yaml.Node) {
 	if node.Kind == yaml.MappingNode {
 		for key, value := range mapPairs(node) {
 			if key.Value == "image" {
-				ref := resolver.NormalizeContainerRef(value.Value)
-				refs.Add(ref, value)
+				addContainerRef(refs, value)
 				return
 			}
 			d.findImages(refs, value)

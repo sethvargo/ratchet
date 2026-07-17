@@ -48,6 +48,19 @@ jobs:
 				"container://ubuntu:22.04",
 			},
 		},
+		{
+			name: "docker_entry_field_named_image",
+			in: `
+jobs:
+  my-job:
+    docker:
+      - image: 'cimg/base:2024'
+      - name: 'image'
+`,
+			exp: []string{
+				"container://cimg/base:2024",
+			},
+		},
 	}
 
 	for _, tc := range cases {

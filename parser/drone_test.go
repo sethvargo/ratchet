@@ -37,6 +37,19 @@ steps:
 				"container://mysql",
 			},
 		},
+		{
+			name: "step_field_named_image",
+			in: `
+steps:
+  - image: 'alpine/git'
+  - commands:
+      - 'echo hello'
+    name: 'image'
+`,
+			exp: []string{
+				"container://alpine/git",
+			},
+		},
 	}
 
 	for _, tc := range cases {

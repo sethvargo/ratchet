@@ -1,8 +1,6 @@
 module github.com/sethvargo/ratchet
 
-go 1.24
-
-toolchain go1.24.2
+go 1.25
 
 require (
 	github.com/braydonk/yaml v0.9.0

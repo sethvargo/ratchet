@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/http"
@@ -16,7 +17,7 @@ import (
 
 var (
 	ActionsBaseURL   = os.Getenv("ACTIONS_BASE_URL")
-	ActionsToken     = coalesce(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
+	ActionsToken     = cmp.Or(os.Getenv("ACTIONS_TOKEN"), os.Getenv("GITHUB_TOKEN"))
 	ActionsUploadURL = os.Getenv("ACTIONS_UPLOAD_URL")
 
 	actionVersionRegex         = regexp.MustCompile(`^v\d+(\.\d+)*$`)
@@ -331,13 +332,4 @@ func compareVersionParts(a, b []int) int {
 		}
 	}
 	return 0
-}
-
-func coalesce(s ...string) string {
-	for _, v := range s {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }

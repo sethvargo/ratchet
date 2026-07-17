@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -74,7 +74,7 @@ func buildTopLevelHelp() string {
 			longest = l
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	fmt.Fprint(&w, "Usage: ratchet COMMAND\n\n")
 	for _, name := range names {

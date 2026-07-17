@@ -34,6 +34,19 @@ steps:
 				"container://ubuntu:20.04",
 			},
 		},
+		{
+			name: "step_field_named_name",
+			in: `
+steps:
+  - name: 'gcr.io/cloud-builders/go'
+  - args:
+      - 'build'
+    id: 'name'
+`,
+			exp: []string{
+				"container://gcr.io/cloud-builders/go",
+			},
+		},
 	}
 
 	for _, tc := range cases {

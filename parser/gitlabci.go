@@ -56,26 +56,26 @@ func (c *GitLabCI) parseOne(refs *RefsList, m *yaml.Node) error {
 			continue
 		}
 		// jobs names
-		for i, keysMap := range docMap.Content {
+		for key, value := range mapPairs(docMap) {
 			// exclude global keywords
-			if _, hit := globalKeywords[keysMap.Value]; hit || (keysMap.Value == "") {
+			if _, hit := globalKeywords[key.Value]; hit || (key.Value == "") {
 				continue
 			}
 
-			job := docMap.Content[i+1]
+			job := value
 			if job.Kind != yaml.MappingNode {
 				continue
 			}
 
-			for k, property := range job.Content {
-				if property.Value == "image" {
-					image := job.Content[k+1]
+			for propKey, propValue := range mapPairs(job) {
+				if propKey.Value == "image" {
+					image := propValue
 
 					// match image reference with name key
 					if image.Kind == yaml.MappingNode {
-						for j, nameRef := range image.Content {
-							if nameRef.Value == "name" {
-								imageRef = image.Content[j+1]
+						for nameKey, nameValue := range mapPairs(image) {
+							if nameKey.Value == "name" {
+								imageRef = nameValue
 								break
 							}
 						}
@@ -85,13 +85,12 @@ func (c *GitLabCI) parseOne(refs *RefsList, m *yaml.Node) error {
 
 					ref := resolver.NormalizeContainerRef(imageRef.Value)
 					refs.Add(ref, imageRef)
-				} else if property.Value == "services" {
-					node := job.Content[k+1]
-					for _, service := range node.Content {
+				} else if propKey.Value == "services" {
+					for _, service := range propValue.Content {
 						if service.Kind == yaml.MappingNode {
-							for j, nameRef := range service.Content {
-								if nameRef.Value == "name" {
-									imageRef = service.Content[j+1]
+							for nameKey, nameValue := range mapPairs(service) {
+								if nameKey.Value == "name" {
+									imageRef = nameValue
 									break
 								}
 							}

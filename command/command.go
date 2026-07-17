@@ -240,7 +240,7 @@ func computeNewlineTargets(before, after string) []int {
 	afteri, afterLines := 0, strings.Split(after, "\n")
 	beforeLines := strings.Split(before, "\n")
 
-	for beforei := 0; beforei < len(beforeLines); beforei++ {
+	for beforei := range beforeLines {
 		if afteri >= len(afterLines) {
 			result = append(result, beforei)
 			continue

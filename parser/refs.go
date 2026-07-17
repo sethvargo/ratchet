@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"iter"
 	"maps"
 	"slices"
 	"strings"
@@ -34,6 +35,21 @@ func (l *RefsList) All() map[string][]*yaml.Node {
 func (l *RefsList) init() {
 	if l.refs == nil {
 		l.refs = make(map[string][]*yaml.Node)
+	}
+}
+
+// mapPairs iterates over the key/value pairs of a YAML mapping node. YAML stores
+// a mapping's children as a flat [key, value, key, value, ...] slice, so pairing
+// them explicitly ensures a scalar value that happens to equal a mapping key is
+// never mistaken for a key and never triggers an out-of-range access on the
+// trailing entry.
+func mapPairs(node *yaml.Node) iter.Seq2[*yaml.Node, *yaml.Node] {
+	return func(yield func(*yaml.Node, *yaml.Node) bool) {
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if !yield(node.Content[i], node.Content[i+1]) {
+				return
+			}
+		}
 	}
 }
 

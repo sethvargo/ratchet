@@ -44,13 +44,13 @@ func (d *Drone) parseOne(refs *RefsList, node *yaml.Node) error {
 		}
 
 		// steps: keyword
-		for i, stepsMap := range docMap.Content {
-			if stepsMap.Value != "steps" {
+		for key, value := range mapPairs(docMap) {
+			if key.Value != "steps" {
 				continue
 			}
 
 			// Individual step arrays
-			steps := docMap.Content[i+1]
+			steps := value
 			if steps.Kind != yaml.SequenceNode {
 				continue
 			}
@@ -59,11 +59,10 @@ func (d *Drone) parseOne(refs *RefsList, node *yaml.Node) error {
 					continue
 				}
 
-				for j, property := range step.Content {
-					if property.Value == "image" {
-						image := step.Content[j+1]
-						ref := resolver.NormalizeContainerRef(image.Value)
-						refs.Add(ref, image)
+				for propKey, propValue := range mapPairs(step) {
+					if propKey.Value == "image" {
+						ref := resolver.NormalizeContainerRef(propValue.Value)
+						refs.Add(ref, propValue)
 						break
 					}
 				}

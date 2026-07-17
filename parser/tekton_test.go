@@ -41,6 +41,21 @@ spec:
 				"container://alpine/git",
 			},
 		},
+		{
+			name: "step_field_named_image",
+			in: `
+apiVersion: tekton.dev/v1
+kind: Task
+spec:
+  steps:
+    - image: 'alpine/git'
+    - name: 'build'
+      script: 'image'
+`,
+			exp: []string{
+				"container://alpine/git",
+			},
+		},
 	}
 
 	for _, tc := range cases {

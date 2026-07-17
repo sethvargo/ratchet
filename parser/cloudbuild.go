@@ -45,13 +45,13 @@ func (c *CloudBuild) parseOne(refs *RefsList, node *yaml.Node) error {
 		}
 
 		// steps: keyword
-		for i, stepsMap := range docMap.Content {
-			if stepsMap.Value != "steps" {
+		for key, value := range mapPairs(docMap) {
+			if key.Value != "steps" {
 				continue
 			}
 
 			// Individual step arrays
-			steps := docMap.Content[i+1]
+			steps := value
 			if steps.Kind != yaml.SequenceNode {
 				continue
 			}
@@ -61,11 +61,10 @@ func (c *CloudBuild) parseOne(refs *RefsList, node *yaml.Node) error {
 					continue
 				}
 
-				for j, property := range step.Content {
-					if property.Value == "name" {
-						name := step.Content[j+1]
-						ref := resolver.NormalizeContainerRef(name.Value)
-						refs.Add(ref, name)
+				for propKey, propValue := range mapPairs(step) {
+					if propKey.Value == "name" {
+						ref := resolver.NormalizeContainerRef(propValue.Value)
+						refs.Add(ref, propValue)
 						break
 					}
 				}

@@ -47,13 +47,13 @@ func (c *CircleCI) parseOne(refs *RefsList, node *yaml.Node) error {
 		}
 
 		// jobs: and executors: keyword
-		for i, jobsMap := range docMap.Content {
-			if jobsMap.Value != "jobs" && jobsMap.Value != "executors" {
+		for key, value := range mapPairs(docMap) {
+			if key.Value != "jobs" && key.Value != "executors" {
 				continue
 			}
 
 			// Individual job names
-			jobs := docMap.Content[i+1]
+			jobs := value
 			if jobs.Kind != yaml.MappingNode {
 				continue
 			}
@@ -63,21 +63,20 @@ func (c *CircleCI) parseOne(refs *RefsList, node *yaml.Node) error {
 					continue
 				}
 
-				for j, sub := range jobMap.Content {
+				for subKey, subValue := range mapPairs(jobMap) {
 					// CI service container, should be resolved as a Docker reference.
 					// This is a map, so the container value is nested a bit deeper.
-					if sub.Value == "docker" {
-						servicesMap := jobMap.Content[j+1]
+					if subKey.Value == "docker" {
+						servicesMap := subValue
 						for _, subMap := range servicesMap.Content {
 							if subMap.Kind != yaml.MappingNode {
 								continue
 							}
 
-							for k, property := range subMap.Content {
-								if property.Value == "image" {
-									image := subMap.Content[k+1]
-									ref := resolver.NormalizeContainerRef(image.Value)
-									refs.Add(ref, image)
+							for propKey, propValue := range mapPairs(subMap) {
+								if propKey.Value == "image" {
+									ref := resolver.NormalizeContainerRef(propValue.Value)
+									refs.Add(ref, propValue)
 									break
 								}
 							}

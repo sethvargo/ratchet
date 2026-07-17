@@ -184,6 +184,32 @@ jobs:
 `,
 			exp: nil,
 		},
+		{
+			name: "step_field_named_uses",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'actions/checkout@v3'
+        name: 'uses'
+`,
+			exp: []string{
+				"actions://actions/checkout@v3",
+			},
+		},
+		{
+			name: "job_field_named_steps",
+			in: `
+jobs:
+  my_job:
+    steps:
+      - uses: 'actions/checkout@v4'
+    name: 'steps'
+`,
+			exp: []string{
+				"actions://actions/checkout@v4",
+			},
+		},
 	}
 
 	for _, tc := range cases {

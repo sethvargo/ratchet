@@ -40,9 +40,9 @@ func (a *Actions) processStep(refs *RefsList, step *yaml.Node) {
 		return
 	}
 
-	for k, property := range step.Content {
-		if property.Value == "uses" {
-			uses := step.Content[k+1]
+	for key, value := range mapPairs(step) {
+		if key.Value == "uses" {
+			uses := value
 
 			if strings.Contains(uses.Value, "${{") {
 				continue
@@ -58,8 +58,8 @@ func (a *Actions) processStep(refs *RefsList, step *yaml.Node) {
 			}
 		}
 
-		if property.Value == "parallel" && len(step.Content) > k+1 {
-			parallelSteps := step.Content[k+1]
+		if key.Value == "parallel" {
+			parallelSteps := value
 			if parallelSteps.Kind == yaml.SequenceNode {
 				for _, innerStep := range parallelSteps.Content {
 					a.processStep(refs, innerStep)
@@ -84,18 +84,18 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 			continue
 		}
 
-		for i, topLevelMap := range docMap.Content {
+		for topKey, topValue := range mapPairs(docMap) {
 			// runs: keyword
-			if topLevelMap.Value == "runs" {
-				runs := docMap.Content[i+1]
+			if topKey.Value == "runs" {
+				runs := topValue
 				if runs.Kind != yaml.MappingNode {
 					continue
 				}
 
 				// Only look at composite actions.
 				foundComposite := false
-				for j, runMap := range runs.Content {
-					if runMap.Value == "using" && len(runs.Content) > j+1 && runs.Content[j+1].Value == "composite" {
+				for runKey, runValue := range mapPairs(runs) {
+					if runKey.Value == "using" && runValue.Value == "composite" {
 						foundComposite = true
 						break
 					}
@@ -105,9 +105,9 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 				}
 
 				// List of steps, iterate over each step and find the "uses" clause.
-				for j, runMap := range runs.Content {
-					if runMap.Value == "steps" {
-						steps := runs.Content[j+1]
+				for runKey, runValue := range mapPairs(runs) {
+					if runKey.Value == "steps" {
+						steps := runValue
 						for _, step := range steps.Content {
 							a.processStep(refs, step)
 						}
@@ -116,8 +116,8 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 			}
 
 			// jobs: keyword
-			if topLevelMap.Value == "jobs" {
-				jobs := docMap.Content[i+1]
+			if topKey.Value == "jobs" {
+				jobs := topValue
 				if jobs.Kind != yaml.MappingNode {
 					continue
 				}
@@ -127,14 +127,14 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 						continue
 					}
 
-					for j, sub := range jobMap.Content {
+					for subKey, subValue := range mapPairs(jobMap) {
 						// Container reference for running the job, should be resolved as a
 						// Docker reference.
-						if sub.Value == "container" {
-							containerMap := jobMap.Content[j+1]
-							for k, property := range containerMap.Content {
-								if property.Value == "image" {
-									image := containerMap.Content[k+1]
+						if subKey.Value == "container" {
+							containerMap := subValue
+							for propKey, propValue := range mapPairs(containerMap) {
+								if propKey.Value == "image" {
+									image := propValue
 
 									// Ignore interpolations, since we cannot resolve most of
 									// their values.
@@ -151,16 +151,16 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 
 						// CI service container, should be resolved as a Docker reference.
 						// This is a map, so the container value is nested a bit deeper.
-						if sub.Value == "services" {
-							servicesMap := jobMap.Content[j+1]
+						if subKey.Value == "services" {
+							servicesMap := subValue
 							for _, subMap := range servicesMap.Content {
 								if subMap.Kind != yaml.MappingNode {
 									continue
 								}
 
-								for k, property := range subMap.Content {
-									if property.Value == "image" {
-										image := subMap.Content[k+1]
+								for propKey, propValue := range mapPairs(subMap) {
+									if propKey.Value == "image" {
+										image := propValue
 
 										// Ignore interpolations, since we cannot resolve most of
 										// their values.
@@ -177,16 +177,16 @@ func (a *Actions) parseOne(refs *RefsList, node *yaml.Node) error {
 						}
 
 						// List of steps, iterate over each step and find the "uses" clause.
-						if sub.Value == "steps" {
-							steps := jobMap.Content[j+1]
+						if subKey.Value == "steps" {
+							steps := subValue
 							for _, step := range steps.Content {
 								a.processStep(refs, step)
 							}
 						}
 
 						// Top-level uses, likely for a reusable workflow.
-						if sub.Value == "uses" {
-							uses := jobMap.Content[j+1]
+						if subKey.Value == "uses" {
+							uses := subValue
 
 							// Ignore interpolations, since we cannot resolve most of
 							// their values.

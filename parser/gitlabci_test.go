@@ -137,6 +137,21 @@ job2:
 				"container://selenium/standalone-firefox:latest",
 			},
 		},
+		{
+			name: "job_field_named_image",
+			in: `
+test_job:
+  image: 'golang:1.21'
+
+build_job:
+  script:
+    - 'make'
+  stage: 'image'
+`,
+			exp: []string{
+				"container://golang:1.21",
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

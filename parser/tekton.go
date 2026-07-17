@@ -55,23 +55,27 @@ func (d *Tekton) parseOne(refs *RefsList, node *yaml.Node) error {
 }
 
 func (d *Tekton) findSpecs(refs *RefsList, node *yaml.Node) {
-	for i, specsMap := range node.Content {
-		if specsMap.Value == "spec" {
-			specs := node.Content[i+1]
-			d.findImages(refs, specs)
+	for key, value := range mapPairs(node) {
+		if key.Value == "spec" {
+			d.findImages(refs, value)
 		}
 	}
 }
 
 func (d *Tekton) findImages(refs *RefsList, node *yaml.Node) {
-	for i, property := range node.Content {
-		if property.Value == "image" {
-			image := node.Content[i+1]
-			ref := resolver.NormalizeContainerRef(image.Value)
-			refs.Add(ref, image)
-			break
-		} else {
-			d.findImages(refs, property)
+	if node.Kind == yaml.MappingNode {
+		for key, value := range mapPairs(node) {
+			if key.Value == "image" {
+				ref := resolver.NormalizeContainerRef(value.Value)
+				refs.Add(ref, value)
+				return
+			}
+			d.findImages(refs, value)
 		}
+		return
+	}
+
+	for _, child := range node.Content {
+		d.findImages(refs, child)
 	}
 }

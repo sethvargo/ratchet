@@ -15,7 +15,7 @@ import (
 const upgradeCommandDesc = `Upgrade all pinned versions to the latest version`
 
 const upgradeCommandHelp = `
-Usage: ratchet f [FILE...]
+Usage: ratchet upgrade [FILE...]
 
 The "upgrade" command unpins any pinned versions, upgrades the unpinned version
 constraint to the latest available value, and then re-pins the versions with the

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v73/github"
+	"github.com/google/go-github/v89/github"
 	"golang.org/x/oauth2"
 )
 
@@ -42,13 +42,16 @@ func NewActions(ctx context.Context) (*Actions, error) {
 	}
 	httpClient.Timeout = 10 * time.Second
 
-	client := github.NewClient(httpClient)
+	opts := []github.ClientOptionsFunc{
+		github.WithHTTPClient(httpClient),
+	}
 	if ActionsBaseURL != "" {
-		var err error
-		client, err = client.WithEnterpriseURLs(ActionsBaseURL, ActionsUploadURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create enterprise github client: %w", err)
-		}
+		opts = append(opts, github.WithEnterpriseURLs(ActionsBaseURL, ActionsUploadURL))
+	}
+
+	client, err := github.NewClient(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github client: %w", err)
 	}
 
 	return &Actions{
@@ -113,7 +116,7 @@ func (g *Actions) LatestVersion(ctx context.Context, value string) (string, erro
 	if path != "" {
 		name = name + "/" + path
 	}
-	version := versionWithPrecision(*release.TagName, ref)
+	version := versionWithPrecision(release.GetTagName(), ref)
 
 	if strings.HasPrefix(ref, "v") && !isActionVersionTag(version) {
 		version, err = g.selectActionVersion(ctx, owner, repo, version, ref)
@@ -234,22 +237,30 @@ type GitHubRef struct {
 // listVersionTags returns all "v"-prefixed tag names, following pagination.
 func (g *Actions) listVersionTags(ctx context.Context, owner, repo string) ([]string, error) {
 	var tags []string
-	opts := &github.ReferenceListOptions{
-		Ref:         "tags/v",
-		ListOptions: github.ListOptions{PerPage: 100},
-	}
-	for {
-		refs, resp, err := g.client.Git.ListMatchingRefs(ctx, owner, repo, opts)
+	for page := 1; ; {
+		// v89's typed ListMatchingRefs no longer accepts pagination options and
+		// only returns the first page, so issue the request directly to page
+		// through all matching tags.
+		u := fmt.Sprintf("repos/%s/%s/git/matching-refs/tags/v?per_page=100&page=%d", owner, repo, page)
+		req, err := g.client.NewRequest(ctx, http.MethodGet, u, nil)
 		if err != nil {
 			return nil, err
 		}
+
+		var refs []*github.Reference
+		resp, err := g.client.Do(req, &refs)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, r := range refs {
 			tags = append(tags, strings.TrimPrefix(r.GetRef(), "refs/tags/"))
 		}
+
 		if resp.NextPage == 0 {
 			break
 		}
-		opts.Page = resp.NextPage
+		page = resp.NextPage
 	}
 	return tags, nil
 }

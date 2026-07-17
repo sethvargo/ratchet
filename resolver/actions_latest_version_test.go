@@ -8,8 +8,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-github/v73/github"
+	"github.com/google/go-github/v89/github"
 )
+
+// testActionsClient returns a github client pointed at the given test server.
+func testActionsClient(tb testing.TB, rawURL string) *github.Client {
+	tb.Helper()
+
+	client, err := github.NewClient(github.WithEnterpriseURLs(rawURL, rawURL))
+	if err != nil {
+		tb.Fatalf("failed to create github client: %v", err)
+	}
+	return client
+}
 
 func TestHighestVersionTag(t *testing.T) {
 	t.Parallel()
@@ -176,11 +187,7 @@ func TestActions_LatestVersion_latestReleaseRef404FallbackLooseNumericTag(t *tes
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	got, err := resolver.LatestVersion(context.Background(), "example/date-action@v2023.06.01")
 	if err != nil {
@@ -212,11 +219,7 @@ func TestActions_LatestVersion_latestReleaseRefExistsWithMatchingMajorDoesNotFal
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	got, err := resolver.LatestVersion(context.Background(), "github/codeql-action/init@v2")
 	if err != nil {
@@ -251,11 +254,7 @@ func TestActions_LatestVersion_latestReleaseRefIgnoresEmbeddedVersionWithoutBoun
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	got, err := resolver.LatestVersion(context.Background(), "example/nonstandard@v3.0.0")
 	if err != nil {
@@ -317,11 +316,7 @@ func TestActions_LatestVersion_latestReleaseRefKeepsValidPrefixedRelease(t *test
 			srv := httptest.NewServer(mux)
 			t.Cleanup(srv.Close)
 
-			client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-			if err != nil {
-				t.Fatal(err)
-			}
-			resolver := &Actions{client: client}
+			resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 			got, err := resolver.LatestVersion(context.Background(), "example/prefixed@"+tc.ref)
 			if err != nil {
@@ -368,11 +363,7 @@ func TestActions_LatestVersion_latestReleaseRefExistsMismatchedMajorFallback(t *
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	cases := []struct {
 		name string
@@ -436,11 +427,7 @@ func TestActions_LatestVersion_latestReleaseRef404Fallback(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	cases := []struct {
 		name string
@@ -501,11 +488,7 @@ func TestActions_LatestVersion_latestReleaseRef404FallbackKeepsConcreteTag(t *te
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	got, err := resolver.LatestVersion(context.Background(), "github/codeql-action/init@v3")
 	if err != nil {
@@ -537,13 +520,9 @@ func TestActions_LatestVersion_latestReleaseRefNon404DoesNotFallback(t *testing.
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
-	_, err = resolver.LatestVersion(context.Background(), "github/codeql-action/init@v2")
+	_, err := resolver.LatestVersion(context.Background(), "github/codeql-action/init@v2")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -567,11 +546,7 @@ func TestActions_Resolve_CodeQLActionPathsShareRef(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	client, err := github.NewClient(nil).WithEnterpriseURLs(srv.URL, srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := &Actions{client: client}
+	resolver := &Actions{client: testActionsClient(t, srv.URL)}
 
 	cases := []struct {
 		name string

@@ -27,17 +27,17 @@ Docker tags are mutable. This poses a substantial security and reliability risk.
 What you're probably doing:
 
 ```yaml
-uses: 'actions/checkout@v4'
+uses: 'actions/checkout@v7'
 # or
-image: 'ubuntu:20.04'
+image: 'ubuntu:24.04'
 ```
 
 What you should really be doing:
 
 ```yaml
-uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
+uses: 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0'
 # or
-image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724'
+image: 'ubuntu@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90'
 ```
 
 But resolving those checksums and managing the update lifecycle is extremely
@@ -46,9 +46,9 @@ unpinned references to the latest version that matches their constraint, and
 then keeps a record of the original constraint.
 
 ```yaml
-uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+uses: 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0' # ratchet:actions/checkout@v7
 # or
-image: 'ubuntu@sha256:47f14534bda344d9fe6ffd6effb95eefe579f4be0d508b7445cf77f61a0e5724' # ratchet:ubuntu:20.04
+image: 'ubuntu@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90' # ratchet:ubuntu:24.04
 ```
 
 
@@ -213,7 +213,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     name: 'ratchet'
     steps:
-      - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683'
+      - uses: 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0'
       - uses: 'sethvargo/ratchet@main' # ratchet:exclude
         with:
           files: '.github/workflows/*.yml'
@@ -258,7 +258,7 @@ being pinned. You can use the `ratchet:exclude` annotation as a line comment and
 ratchet will not process that reference:
 
 ```yaml
-uses: 'actions/checkout@v4' # ratchet:exclude
+uses: 'actions/checkout@v7' # ratchet:exclude
 ```
 
 There **cannot** be any spaces in the exclusion string, and the exclusion string
@@ -268,11 +268,11 @@ only applies to the line on which it appears.
 ## Terminology
 
 -   **Unpinned version** - An unpinned version is a non-absolute reference to a
-    floating tag or label, such as `actions/checkout@v4` or `ubuntu:22.04`.
+    floating tag or label, such as `actions/checkout@v7` or `ubuntu:24.04`.
 
 -   **Pinned version** - A pinned version is an absolute hashed reference, such
-    as `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` or
-    `ubuntu@sha256:82becede498899ec668628e7cb0ad87b6e1c371cb8a1e597d83a47fac21d6af3`.
+    as `actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0` or
+    `ubuntu@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90`.
 
 
 ## Known issues

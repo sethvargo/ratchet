@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"testing"
+	"time"
 )
 
 func TestContainer_Resolve(t *testing.T) {
@@ -48,6 +49,55 @@ func TestContainer_Resolve(t *testing.T) {
 
 			if !match {
 				t.Errorf("expected %q to match %q", result, tc.exp)
+			}
+		})
+	}
+}
+
+func Test_imageCreatedTimestamp(t *testing.T) {
+	t.Parallel()
+
+	created := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name    string
+		created time.Time
+		wantOK  bool
+	}{
+		{
+			name:    "valid",
+			created: created,
+			wantOK:  true,
+		},
+		{
+			name:    "zero",
+			created: time.Time{},
+		},
+		{
+			name:    "epoch",
+			created: time.Unix(0, 0).UTC(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := imageCreatedTimestamp(tc.created)
+			if !tc.wantOK {
+				if got != nil {
+					t.Errorf("expected nil, got %v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected %v, got nil", tc.created)
+			}
+			if !got.Time.Equal(tc.created) {
+				t.Errorf("expected %v, got %v", tc.created, got.Time)
+			}
+			if got.Source != "image" {
+				t.Errorf("expected source %q, got %q", "image", got.Source)
 			}
 		})
 	}

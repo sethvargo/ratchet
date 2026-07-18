@@ -82,6 +82,85 @@ func (g *Actions) Resolve(ctx context.Context, value string) (string, error) {
 	return fmt.Sprintf("%s@%s", name, sha), nil
 }
 
+// ResolvedTimestamp reports the most trustworthy known publish or creation time
+// for value, trying sources from most to least trustworthy: a GitHub release's
+// server-set published_at, then an annotated tag's tagger date, then the
+// resolved commit's committer date, then its author date. It returns nil when
+// no time can be determined.
+func (g *Actions) ResolvedTimestamp(ctx context.Context, value string) (*Timestamp, error) {
+	githubRef, err := ParseActionRef(value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse github ref: %w", err)
+	}
+	owner := githubRef.owner
+	repo := githubRef.repo
+	ref := githubRef.ref
+
+	// Most trustworthy: a release's published_at is set server-side by GitHub
+	// and cannot be backdated by the upstream repository.
+	release, resp, err := g.client.Repositories.GetReleaseByTag(ctx, owner, repo, ref)
+	if err != nil {
+		if resp == nil || resp.StatusCode != http.StatusNotFound {
+			return nil, fmt.Errorf("failed to get release for tag %s: %w", ref, err)
+		}
+	} else if release != nil {
+		if published := release.GetPublishedAt(); !published.Time.IsZero() {
+			return newTimestamp(published.Time, "release"), nil
+		}
+		if created := release.GetCreatedAt(); !created.Time.IsZero() {
+			return newTimestamp(created.Time, "release"), nil
+		}
+	}
+
+	// An annotated tag's tagger date is when the tag was created, which catches
+	// an attacker who points a fresh annotated tag at an old commit. Lightweight
+	// tags carry no date and fall through to the commit below.
+	tagRef, resp, err := g.client.Git.GetRef(ctx, owner, repo, "tags/"+ref)
+	if err != nil {
+		if resp == nil || resp.StatusCode != http.StatusNotFound {
+			return nil, fmt.Errorf("failed to get tag ref %s: %w", ref, err)
+		}
+	} else if obj := tagRef.GetObject(); obj != nil && obj.GetType() == "tag" {
+		tag, _, err := g.client.Git.GetTag(ctx, owner, repo, obj.GetSHA())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tag object %s: %w", ref, err)
+		}
+		if tagger := tag.GetTagger(); tagger != nil {
+			if date := tagger.GetDate(); !date.Time.IsZero() {
+				return newTimestamp(date.Time, "tag"), nil
+			}
+		}
+	}
+
+	// Least trustworthy: the commit dates, which the upstream repository sets and
+	// can backdate.
+	commit, _, err := g.client.Repositories.GetCommit(ctx, owner, repo, ref, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get commit %s: %w", ref, err)
+	}
+	return commitTimestamp(commit), nil
+}
+
+// commitTimestamp returns the commit's committer date, falling back to its
+// author date, or nil when neither is set.
+func commitTimestamp(commit *github.RepositoryCommit) *Timestamp {
+	c := commit.GetCommit()
+	if c == nil {
+		return nil
+	}
+	if committer := c.GetCommitter(); committer != nil {
+		if date := committer.GetDate(); !date.Time.IsZero() {
+			return newTimestamp(date.Time, "commit")
+		}
+	}
+	if author := c.GetAuthor(); author != nil {
+		if date := author.GetDate(); !date.Time.IsZero() {
+			return newTimestamp(date.Time, "commit")
+		}
+	}
+	return nil
+}
+
 func (g *Actions) LatestVersion(ctx context.Context, value string) (string, error) {
 	githubRef, err := ParseActionRef(value)
 	if err != nil {

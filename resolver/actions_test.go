@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/go-github/v89/github"
 )
 
 func TestActions_Resolve(t *testing.T) {
@@ -196,6 +199,73 @@ func TestParseActionRef(t *testing.T) {
 
 			if got, want := ref, tc.exp; !reflect.DeepEqual(got, want) {
 				t.Errorf("expected %#v to be %#v", got, want)
+			}
+		})
+	}
+}
+
+func Test_commitTimestamp(t *testing.T) {
+	t.Parallel()
+
+	committer := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	author := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name   string
+		commit *github.RepositoryCommit
+		want   time.Time
+		wantOK bool
+	}{
+		{
+			name: "prefers_committer",
+			commit: &github.RepositoryCommit{
+				Commit: &github.Commit{
+					Committer: &github.CommitAuthor{Date: &github.Timestamp{Time: committer}},
+					Author:    &github.CommitAuthor{Date: &github.Timestamp{Time: author}},
+				},
+			},
+			want:   committer,
+			wantOK: true,
+		},
+		{
+			name: "falls_back_to_author",
+			commit: &github.RepositoryCommit{
+				Commit: &github.Commit{
+					Author: &github.CommitAuthor{Date: &github.Timestamp{Time: author}},
+				},
+			},
+			want:   author,
+			wantOK: true,
+		},
+		{
+			name:   "no_dates",
+			commit: &github.RepositoryCommit{Commit: &github.Commit{}},
+		},
+		{
+			name:   "no_commit",
+			commit: &github.RepositoryCommit{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := commitTimestamp(tc.commit)
+			if !tc.wantOK {
+				if got != nil {
+					t.Errorf("expected nil, got %v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected %v, got nil", tc.want)
+			}
+			if !got.Time.Equal(tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got.Time)
+			}
+			if got.Source != "commit" {
+				t.Errorf("expected source %q, got %q", "commit", got.Source)
 			}
 		})
 	}

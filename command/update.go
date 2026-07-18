@@ -60,7 +60,7 @@ func (c *UpdateCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	res, err := resolver.NewDefaultResolver(ctx)
+	res, err := resolver.NewDefaultResolver(ctx, resolver.WithBakeDelay(c.flagBakeDelay))
 	if err != nil {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}

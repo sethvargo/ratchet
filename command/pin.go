@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
@@ -39,6 +40,7 @@ type PinCommand struct {
 	flagConcurrency int64
 	flagParser      string
 	flagOut         string
+	flagBakeDelay   time.Duration
 }
 
 func (c *PinCommand) Desc() string {
@@ -57,6 +59,9 @@ func (c *PinCommand) Flags() *flag.FlagSet {
 	f.StringVar(&c.flagParser, "parser", "actions", "parser to use")
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 
+	f.DurationVar(&c.flagBakeDelay, "bake-delay", bakeDelayFromEnv(),
+		"minimum age before ratchet resolves a commit, release, or image (0=off); also RATCHET_BAKE_DELAY")
+
 	return f
 }
 
@@ -71,7 +76,7 @@ func (c *PinCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	res, err := resolver.NewDefaultResolver(ctx)
+	res, err := resolver.NewDefaultResolver(ctx, resolver.WithBakeDelay(c.flagBakeDelay))
 	if err != nil {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}

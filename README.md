@@ -167,6 +167,30 @@ ratchet upgrade -out workflow-compiled.yml workflow.yml
 > [!NOTE]
 > Performs an `update` if the constraint ref is for a branch.
 
+#### Bake delay
+
+When running `pin`, `update`, or `upgrade`, the `-bake-delay` flag (or the
+`RATCHET_BAKE_DELAY` environment variable) refuses to resolve any commit,
+release, or image younger than the given duration. This lets a version "bake"
+before you adopt it, lowering the risk of pinning one that was compromised and
+published minutes ago. pnpm calls this `minimumReleaseAge`; Dependabot calls it
+`cooldown`. It is off by default.
+
+```shell
+# only adopt versions at least 24 hours old
+ratchet update -bake-delay 24h workflow.yml
+
+# also configurable via the environment
+RATCHET_BAKE_DELAY=24h ratchet upgrade workflow.yml
+```
+
+For GitHub Actions, ratchet uses the most trustworthy time it can find: a
+release's `published_at` (set by GitHub and not forgeable), then an annotated
+tag's date, then the commit date. Only the release date is tamper-proof, so bake
+delay reduces risk but does not guarantee against a compromised upstream. It
+does not detect a tag repointed at an already-old commit, and a moving major tag
+like `v4` (which has no matching release) falls back to the commit date.
+
 #### Lint
 
 The `lint` command reports if all versions are pinned, printing any violations,

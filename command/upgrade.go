@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sethvargo/ratchet/internal/concurrency"
 	"github.com/sethvargo/ratchet/parser"
@@ -37,6 +38,7 @@ type UpgradeCommand struct {
 	flagParser      string
 	flagOut         string
 	flagPin         bool
+	flagBakeDelay   time.Duration
 }
 
 func (c *UpgradeCommand) Desc() string {
@@ -56,6 +58,9 @@ func (c *UpgradeCommand) Flags() *flag.FlagSet {
 	f.StringVar(&c.flagOut, "out", "", "output path (defaults to input file)")
 	f.BoolVar(&c.flagPin, "pin", true, "pin resolved upgraded versions")
 
+	f.DurationVar(&c.flagBakeDelay, "bake-delay", bakeDelayFromEnv(),
+		"minimum age before ratchet resolves a commit, release, or image (0=off); also RATCHET_BAKE_DELAY")
+
 	return f
 }
 
@@ -70,7 +75,7 @@ func (c *UpgradeCommand) Run(ctx context.Context, originalArgs []string) error {
 		return err
 	}
 
-	res, err := resolver.NewDefaultResolver(ctx)
+	res, err := resolver.NewDefaultResolver(ctx, resolver.WithBakeDelay(c.flagBakeDelay))
 	if err != nil {
 		return fmt.Errorf("failed to create resolver: %w", err)
 	}

@@ -50,3 +50,37 @@ func (g *Container) Resolve(ctx context.Context, value string) (string, error) {
 
 	return fmt.Sprintf("%s@%s", ref.Context().Name(), resp.Digest.String()), nil
 }
+
+// ResolvedTimestamp reports the image's config "created" time. That value is set
+// by the image builder and is not server-authoritative. Reproducible builds
+// zero it out (or set it to the Unix epoch), which is reported as nil so the
+// caller degrades gracefully.
+func (g *Container) ResolvedTimestamp(ctx context.Context, value string) (*Timestamp, error) {
+	ref, err := name.ParseReference(value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Container ref: %w", err)
+	}
+
+	img, err := remote.Image(ref,
+		remote.WithContext(ctx),
+		remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch container image: %w", err)
+	}
+
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read container image config: %w", err)
+	}
+
+	return imageCreatedTimestamp(cfg.Created.Time), nil
+}
+
+// imageCreatedTimestamp wraps an image "created" time, treating the zero value
+// and the Unix epoch (both used by reproducible builds) as unknown.
+func imageCreatedTimestamp(created time.Time) *Timestamp {
+	if created.IsZero() || created.Unix() <= 0 {
+		return nil
+	}
+	return newTimestamp(created, "image")
+}

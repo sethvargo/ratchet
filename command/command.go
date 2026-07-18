@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	// Using banydonk/yaml instead of the default yaml pkg because the default
 	// pkg incorrectly escapes unicode. https://github.com/go-yaml/yaml/issues/737
@@ -80,6 +81,13 @@ func parseFlags(f *flag.FlagSet, args []string) ([]string, error) {
 	finalArgs = append(finalArgs, f.Args()...)
 
 	return finalArgs, merr
+}
+
+// bakeDelayFromEnv returns the bake delay configured via RATCHET_BAKE_DELAY, or
+// 0 when it is unset or unparseable. It seeds the -bake-delay flag default.
+func bakeDelayFromEnv() time.Duration {
+	d, _ := time.ParseDuration(os.Getenv("RATCHET_BAKE_DELAY"))
+	return d
 }
 
 // extractCommandAndArgs is a helper that pulls the subcommand and arguments.
